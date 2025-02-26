@@ -70,15 +70,15 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
   };
 
   return (
-    <div className="w-screen h-screen flex justify-center items-center bg-gray-100">
+    <div className="w-screen h-screen flex justify-center items-center bg-neutral-900">
       <form onSubmit={handleSubmit}>
         <input
           type="hidden"
           name="type"
           value={isSignin ? "signin" : "signup"}
         />
-        <div className="p-8 bg-white rounded-lg shadow-md w-96">
-          <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
+        <div className="p-8 bg-black rounded-lg shadow-md w-96 border border-neutral-800">
+          <h2 className="text-2xl font-bold text-center mb-6 text-white">
             {isSignin ? "Welcome Back" : "Create Account"}
           </h2>
           <div className="space-y-4">
@@ -87,7 +87,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                 type="text"
                 placeholder="Email"
                 name="email"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full px-4 py-2 border border-neutral-700 rounded-md bg-neutral-900 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
                 onChange={(e) => setError("")}
               />
             </div>
@@ -96,18 +96,18 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                 type="password"
                 placeholder="Password"
                 name="password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full px-4 py-2 border border-neutral-700 rounded-md bg-neutral-900 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent"
                 onChange={(e) => setError("")}
               />
             </div>
-            {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
 
             <div className="pt-4">
               <Button
                 variant="primary"
                 size="lg"
                 disabled={isPending}
-                className="w-full bg-black text-white rounded-md hover:opacity-90 transition-opacity"
+                className="w-full bg-white text-black rounded-md hover:bg-neutral-100 transition-opacity"
               >
                 {isPending
                   ? isSignin
@@ -118,18 +118,18 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                     : "Sign Up"}
               </Button>
             </div>
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-center text-sm text-neutral-400">
               {isSignin ? (
                 <p>
                   Don&apos;t have an account?{" "}
-                  <Link href="/signup" className="text-black hover:underline">
+                  <Link href="/signup" className="text-white hover:underline">
                     Sign up
                   </Link>
                 </p>
               ) : (
                 <p>
                   Already have an account?{" "}
-                  <Link href="/signin" className="text-black hover:underline">
+                  <Link href="/signin" className="text-white hover:underline">
                     Sign in
                   </Link>
                 </p>
