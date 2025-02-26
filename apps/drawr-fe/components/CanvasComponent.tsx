@@ -12,6 +12,15 @@ import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
 
 type Tool = "circle" | "rectangle" | "line" | "eraser" | "pencil" | "text";
+type StrokeColor =
+  | "white"
+  | "red"
+  | "blue"
+  | "green"
+  | "yellow"
+  | "purple"
+  | "orange"
+  | "pink";
 
 export function CanvasComponent({
   roomId,
@@ -23,6 +32,11 @@ export function CanvasComponent({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<Game | null>(null);
   const pageSize = usePageSize();
+  const [selectedColor, setSelectedColor] = useState<StrokeColor>("white");
+
+  useEffect(() => {
+    game?.setStrokeColor(selectedColor);
+  }, [selectedColor, game]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -82,7 +96,12 @@ export function CanvasComponent({
       <input
         ref={inputRef}
         className="fixed bg-transparent text-white outline-none text-lg"
-        style={{ left: textInput.x, top: textInput.y - 10, fontSize: "20px" }}
+        style={{
+          left: textInput.x,
+          top: textInput.y - 10,
+          fontSize: "20px",
+          color: selectedColor,
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && e.currentTarget.value) {
             game?.addText(e.currentTarget.value, textInput.x, textInput.y);
@@ -165,6 +184,10 @@ export function CanvasComponent({
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
       </div>
+      <ColorBar
+        selectedColor={selectedColor}
+        setSelectedColor={setSelectedColor}
+      />
     </div>
   );
 }
@@ -238,6 +261,39 @@ function Topbar({
         keybind="6"
         title="Eraser — 6"
       />
+    </div>
+  );
+}
+
+function ColorBar({
+  selectedColor,
+  setSelectedColor,
+}: {
+  selectedColor: StrokeColor;
+  setSelectedColor: (color: StrokeColor) => void;
+}) {
+  const colors: { value: StrokeColor; bg: string }[] = [
+    { value: "white", bg: "bg-white" },
+    { value: "red", bg: "bg-red-500" },
+    { value: "blue", bg: "bg-blue-500" },
+    { value: "green", bg: "bg-green-500" },
+    { value: "yellow", bg: "bg-yellow-500" },
+    { value: "purple", bg: "bg-purple-500" },
+    { value: "orange", bg: "bg-orange-500" },
+    { value: "pink", bg: "bg-pink-500" },
+  ];
+
+  return (
+    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/20">
+      {colors.map((color) => (
+        <button
+          key={color.value}
+          onClick={() => setSelectedColor(color.value)}
+          className={`w-8 h-8 rounded-full ${color.bg} transition-all duration-300 
+              ${selectedColor === color.value ? "scale-110 ring-2 ring-white" : "hover:scale-105"}`}
+          title={color.value.charAt(0).toUpperCase() + color.value.slice(1)}
+        />
+      ))}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { generateId } from "@/utils/generateId";
-import { getExsistingShapes } from "./http";
+import { getExistingShapes } from "./http";
 import { pointToLineDistance } from "@/utils/pointToLineDistance";
 
 type Tool = "circle" | "rectangle" | "line" | "eraser" | "pencil" | "text";
@@ -9,6 +9,7 @@ type Shape =
       id?: number;
       shape: {
         type: "rectangle";
+        strokeColor: string;
         x: number;
         y: number;
         width: number;
@@ -18,6 +19,7 @@ type Shape =
   | {
       id?: number;
       shape: {
+        strokeColor: string;
         type: "circle";
         centerX: number;
         centerY: number;
@@ -27,6 +29,7 @@ type Shape =
   | {
       id?: number;
       shape: {
+        strokeColor: string;
         type: "line";
         startX: number;
         startY: number;
@@ -37,6 +40,7 @@ type Shape =
   | {
       id?: number;
       shape: {
+        strokeColor: string;
         type: "pencil";
         points: { x: number; y: number }[];
       };
@@ -44,6 +48,7 @@ type Shape =
   | {
       id?: number;
       shape: {
+        strokeColor: string;
         type: "text";
         text: string;
         x: number;
@@ -56,7 +61,7 @@ type Shape =
 export class Game {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private exsistingShapes: Shape[];
+  private existingShapes: Shape[];
   private roomId: string;
   private socket: WebSocket;
   private clicked: boolean;
@@ -64,10 +69,11 @@ export class Game {
   private startY: number = 0;
   private selectedTool = "circle";
   private currentPath: { x: number; y: number }[] = [];
+  private strokeColor: string = "white";
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
-    this.exsistingShapes = [];
+    this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
     this.clicked = false;
@@ -85,6 +91,7 @@ export class Game {
       id: generateId(),
       shape: {
         type: "text",
+        strokeColor: this.strokeColor,
         text,
         x,
         y: y + 10,
@@ -92,7 +99,7 @@ export class Game {
         height: 30,
       },
     };
-    this.exsistingShapes.push(newShape);
+    this.existingShapes.push(newShape);
     this.socket.send(
       JSON.stringify({
         type: "chat",
@@ -104,7 +111,7 @@ export class Game {
   }
 
   async init() {
-    this.exsistingShapes = await getExsistingShapes(this.roomId);
+    this.existingShapes = await getExistingShapes(this.roomId);
     this.clearCanvas();
   }
 
@@ -116,25 +123,28 @@ export class Game {
     const message = JSON.parse(event.data);
     if (message.type === "chat") {
       const parsedShape = JSON.parse(message.message);
-      this.exsistingShapes.push(parsedShape);
+      this.existingShapes.push(parsedShape);
       this.clearCanvas();
     }
     if (message.type === "delete_message") {
-      this.exsistingShapes = this.exsistingShapes.filter(
+      this.existingShapes = this.existingShapes.filter(
         (shape) => shape.id !== message.messageId
       );
       this.clearCanvas();
     }
   };
+  setStrokeColor(color: string) {
+    this.strokeColor = color;
+  }
   clearCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = "rgba(0,0,0)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.strokeStyle = "rgba(255, 255, 255)";
+    this.ctx.strokeStyle = "white";
 
-    this.exsistingShapes.map((element) => {
+    this.existingShapes.map((element) => {
       if (element.shape.type === "rectangle") {
-        this.ctx.strokeStyle = "rgba(255, 255, 255)";
+        this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.strokeRect(
           element.shape.x,
           element.shape.y,
@@ -142,6 +152,7 @@ export class Game {
           element.shape.height
         );
       } else if (element.shape.type === "circle") {
+        this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.beginPath();
         this.ctx.arc(
           element.shape.centerX,
@@ -153,6 +164,7 @@ export class Game {
         this.ctx.stroke();
         this.ctx.closePath();
       } else if (element.shape.type === "line") {
+        this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.beginPath();
         this.ctx.moveTo(element.shape.startX, element.shape.startY);
         this.ctx.lineTo(element.shape.endX, element.shape.endY);
@@ -162,6 +174,7 @@ export class Game {
         element.shape.type === "pencil" &&
         element.shape.points?.length > 0
       ) {
+        this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.beginPath();
         this.ctx.moveTo(element.shape.points[0].x, element.shape.points[0].y);
         for (const point of element.shape.points) {
@@ -170,7 +183,7 @@ export class Game {
         this.ctx.stroke();
         this.ctx.closePath();
       } else if (element.shape.type === "text") {
-        this.ctx.fillStyle = "white";
+        this.ctx.fillStyle = element.shape.strokeColor || "white";
         this.ctx.font = "20px Arial";
         this.ctx.fillText(element.shape.text, element.shape.x, element.shape.y);
       }
@@ -183,7 +196,7 @@ export class Game {
     this.startY = e.clientY;
 
     if (this.selectedTool === "eraser") {
-      this.exsistingShapes = this.exsistingShapes.filter((element) => {
+      this.existingShapes = this.existingShapes.filter((element) => {
         let shouldKeep = true;
 
         if (element.shape.type === "rectangle") {
@@ -296,6 +309,7 @@ export class Game {
         id: generateId(),
         shape: {
           type: "rectangle",
+          strokeColor: this.strokeColor,
           x: Math.min(this.startX, e.clientX),
           y: Math.min(this.startY, e.clientY),
           height: Math.abs(height),
@@ -308,6 +322,7 @@ export class Game {
         id: generateId(),
         shape: {
           type: "circle",
+          strokeColor: this.strokeColor,
           radius,
           centerX: this.startX + width / 2,
           centerY: this.startY + height / 2,
@@ -318,6 +333,7 @@ export class Game {
         id: generateId(),
         shape: {
           type: "line",
+          strokeColor: this.strokeColor,
           startX: this.startX,
           startY: this.startY,
           endX: e.clientX,
@@ -329,11 +345,14 @@ export class Game {
         id: generateId(),
         shape: {
           type: "pencil",
+          strokeColor: this.strokeColor,
           points: this.currentPath,
         },
       };
       this.currentPath = []; // Reset path after creating shape
-      this.exsistingShapes.push(newShape);
+      this.existingShapes.push(newShape);
+      console.log("newShape pencil", newShape);
+
       this.socket.send(
         JSON.stringify({
           type: "chat",
@@ -346,7 +365,8 @@ export class Game {
     if (!newShape) {
       return;
     }
-    this.exsistingShapes.push(newShape);
+    console.log("newShape", newShape);
+    this.existingShapes.push(newShape);
 
     this.socket.send(
       JSON.stringify({
@@ -365,7 +385,7 @@ export class Game {
       const width = e.clientX - this.startX;
       const height = e.clientY - this.startY;
       this.clearCanvas();
-      this.ctx.strokeStyle = "rgba(255, 255, 255)";
+      this.ctx.strokeStyle = this.strokeColor || "rgba(255, 255, 255)";
 
       if (this.selectedTool === "rectangle") {
         this.ctx.strokeRect(
@@ -391,9 +411,9 @@ export class Game {
       } else if (this.selectedTool === "pencil") {
         this.currentPath.push({ x: e.clientX, y: e.clientY });
         this.clearCanvas();
-
         // Draw the current path
         this.ctx.beginPath();
+        this.ctx.strokeStyle = this.strokeColor; // Add this line
         this.ctx.moveTo(this.currentPath[0].x, this.currentPath[0].y);
         for (const point of this.currentPath) {
           this.ctx.lineTo(point.x, point.y);
