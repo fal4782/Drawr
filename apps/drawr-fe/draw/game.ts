@@ -196,6 +196,10 @@ export class Game {
     this.startY = e.clientY;
 
     if (this.selectedTool === "eraser") {
+      const eraserRadius = 8;
+      const eraserX = e.clientX + eraserRadius; // Adjust the x-coordinate to center the eraser
+      const eraserY = e.clientY + eraserRadius; // Adjust the y-coordinate to center the eraser
+
       this.existingShapes = this.existingShapes.filter((element) => {
         let shouldKeep = true;
 
@@ -204,8 +208,8 @@ export class Game {
           const tolerance = 5;
 
           const distToTop = pointToLineDistance(
-            e.clientX,
-            e.clientY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y,
             rect.x + rect.width,
@@ -213,8 +217,8 @@ export class Game {
           );
 
           const distToRight = pointToLineDistance(
-            e.clientX,
-            e.clientY,
+            eraserX,
+            eraserY,
             rect.x + rect.width,
             rect.y,
             rect.x + rect.width,
@@ -222,8 +226,8 @@ export class Game {
           );
 
           const distToBottom = pointToLineDistance(
-            e.clientX,
-            e.clientY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y + rect.height,
             rect.x + rect.width,
@@ -231,8 +235,8 @@ export class Game {
           );
 
           const distToLeft = pointToLineDistance(
-            e.clientX,
-            e.clientY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y,
             rect.x,
@@ -247,16 +251,16 @@ export class Game {
           );
         } else if (element.shape.type === "circle") {
           const dist = Math.sqrt(
-            (e.clientX - element.shape.centerX) ** 2 +
-              (e.clientY - element.shape.centerY) ** 2
+            (eraserX - element.shape.centerX) ** 2 +
+              (eraserY - element.shape.centerY) ** 2
           );
           const distanceFromPerimeter = Math.abs(dist - element.shape.radius);
           const tolerance = 5;
           shouldKeep = distanceFromPerimeter > tolerance;
         } else if (element.shape.type === "line") {
           const distance = pointToLineDistance(
-            e.clientX,
-            e.clientY,
+            eraserX,
+            eraserY,
             element.shape.startX,
             element.shape.startY,
             element.shape.endX,
@@ -267,17 +271,17 @@ export class Game {
         } else if (element.shape.type === "pencil") {
           const isPointInPoints = element.shape.points.some(
             (point) =>
-              (point.x === e.clientX && point.y === e.clientY) ||
+              (point.x === eraserX && point.y === eraserY) ||
               (Math.abs(point.x - e.clientX) < 10 &&
                 Math.abs(point.y - e.clientY) < 10)
           );
           shouldKeep = !isPointInPoints;
         } else if (element.shape.type === "text") {
           shouldKeep = !(
-            e.clientX >= element.shape.x &&
-            e.clientX <= element.shape.x + element.shape.width &&
-            e.clientY >= element.shape.y - element.shape.height && // Adjust for text baseline
-            e.clientY <= element.shape.y
+            eraserX >= element.shape.x &&
+            eraserX <= element.shape.x + element.shape.width &&
+            eraserY >= element.shape.y - element.shape.height && // Adjust for text baseline
+            eraserY <= element.shape.y
           );
         }
 
@@ -351,7 +355,6 @@ export class Game {
       };
       this.currentPath = []; // Reset path after creating shape
       this.existingShapes.push(newShape);
-      console.log("newShape pencil", newShape);
 
       this.socket.send(
         JSON.stringify({
@@ -365,7 +368,6 @@ export class Game {
     if (!newShape) {
       return;
     }
-    console.log("newShape", newShape);
     this.existingShapes.push(newShape);
 
     this.socket.send(

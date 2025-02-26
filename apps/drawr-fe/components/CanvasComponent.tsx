@@ -97,11 +97,11 @@ export function CanvasComponent({
           if (e.key === "Enter" && e.currentTarget.value) {
             game?.addText(e.currentTarget.value, textInput.x, textInput.y);
             setTextInput({ ...textInput, isVisible: false });
-            document.body.style.cursor = "default";
+            document.body.style.cursor = "crosshair";
           }
           if (e.key === "Escape") {
             setTextInput({ ...textInput, isVisible: false });
-            document.body.style.cursor = "default";
+            document.body.style.cursor = "crosshair";
           }
         }}
         onBlur={() => setTextInput({ ...textInput, isVisible: false })}
@@ -111,6 +111,10 @@ export function CanvasComponent({
 
   useEffect(() => {
     game?.setTool(selectedTool);
+    if (selectedTool === "text") document.body.style.cursor = "text";
+    else if (selectedTool === "eraser")
+      document.body.style.cursor = "url('/circle.png'), auto";
+    else document.body.style.cursor = "crosshair";
   }, [selectedTool, game]);
 
   useEffect(() => {
@@ -141,7 +145,6 @@ export function CanvasComponent({
           break;
         case "5":
           setSelectedTool("text");
-          document.body.style.cursor = "text";
           break;
         case "6":
           setSelectedTool("eraser");
@@ -197,7 +200,6 @@ function Topbar({
         icon={<PencilIcon />}
         onClick={() => {
           setSelectedTool("pencil");
-          document.body.style.cursor = "default";
         }}
         keybind="1"
         title="Pencil — 1"
@@ -207,7 +209,6 @@ function Topbar({
         icon={<SlashIcon />}
         onClick={() => {
           setSelectedTool("line");
-          document.body.style.cursor = "default";
         }}
         keybind="2"
         title="Line — 2"
@@ -217,7 +218,6 @@ function Topbar({
         icon={<RectangleHorizontalIcon />}
         onClick={() => {
           setSelectedTool("rectangle");
-          document.body.style.cursor = "default";
         }}
         keybind="3"
         title="Rectangle — 3"
@@ -227,7 +227,6 @@ function Topbar({
         icon={<CircleIcon />}
         onClick={() => {
           setSelectedTool("circle");
-          document.body.style.cursor = "default";
         }}
         keybind="4"
         title="Circle — 4"
@@ -237,7 +236,6 @@ function Topbar({
         icon={<BaselineIcon />}
         onClick={() => {
           setSelectedTool("text");
-          document.body.style.cursor = "text";
         }}
         keybind="5"
         title="Text — 5"
@@ -247,7 +245,6 @@ function Topbar({
         icon={<EraserIcon />}
         onClick={() => {
           setSelectedTool("eraser");
-          document.body.style.cursor = "default";
         }}
         keybind="6"
         title="Eraser — 6"
