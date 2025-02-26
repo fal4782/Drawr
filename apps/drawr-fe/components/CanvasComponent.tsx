@@ -12,15 +12,6 @@ import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
 
 type Tool = "circle" | "rectangle" | "line" | "eraser" | "pencil" | "text";
-type StrokeColor =
-  | "white"
-  | "red"
-  | "blue"
-  | "green"
-  | "yellow"
-  | "purple"
-  | "orange"
-  | "pink";
 
 export function CanvasComponent({
   roomId,
@@ -32,7 +23,7 @@ export function CanvasComponent({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [game, setGame] = useState<Game | null>(null);
   const pageSize = usePageSize();
-  const [selectedColor, setSelectedColor] = useState<StrokeColor>("white");
+  const [selectedColor, setSelectedColor] = useState<string>("white");
 
   useEffect(() => {
     game?.setStrokeColor(selectedColor);
@@ -269,29 +260,33 @@ function ColorBar({
   selectedColor,
   setSelectedColor,
 }: {
-  selectedColor: StrokeColor;
-  setSelectedColor: (color: StrokeColor) => void;
+  selectedColor: string;
+  setSelectedColor: (color: any) => void;
 }) {
-  const colors: { value: StrokeColor; bg: string }[] = [
-    { value: "white", bg: "bg-white" },
-    { value: "red", bg: "bg-red-500" },
-    { value: "blue", bg: "bg-blue-500" },
-    { value: "green", bg: "bg-green-500" },
-    { value: "yellow", bg: "bg-yellow-500" },
-    { value: "purple", bg: "bg-purple-500" },
-    { value: "orange", bg: "bg-orange-500" },
-    { value: "pink", bg: "bg-pink-500" },
+  const colors = [
+    "#FFFFFF",
+    "#F43F5E",
+    "#22D3EE",
+    "#A3E635",
+    "#FDE047",
+    "#D946EF",
+    "#FB923C",
+    "#F472B6",
   ];
 
   return (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/20">
       {colors.map((color) => (
         <button
-          key={color.value}
-          onClick={() => setSelectedColor(color.value)}
-          className={`w-8 h-8 rounded-full ${color.bg} transition-all duration-300 
-              ${selectedColor === color.value ? "scale-110 ring-2 ring-white" : "hover:scale-105"}`}
-          title={color.value.charAt(0).toUpperCase() + color.value.slice(1)}
+          key={color}
+          onClick={() => setSelectedColor(color)}
+          style={{ backgroundColor: color }}
+          className={`w-8 h-8 rounded-full transition-all duration-300 shadow-md
+            ${
+              selectedColor === color
+                ? "scale-125 ring-2 ring-white/50 shadow-lg"
+                : "hover:scale-110 hover:ring-2 hover:ring-white/30"
+            }`}
         />
       ))}
     </div>
