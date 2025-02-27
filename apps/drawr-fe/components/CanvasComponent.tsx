@@ -9,7 +9,7 @@ import {
   SlashIcon,
   ZoomInIcon,
   ZoomOutIcon,
-  MoveIcon,
+  HandIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -128,7 +128,7 @@ export function CanvasComponent({
     else if (selectedTool === "eraser")
       //   document.body.style.cursor = "url('/circle.png'), auto";
       document.body.style.cursor = "crosshair";
-    else if (selectedTool === "pan") document.body.style.cursor = "move";
+    else if (selectedTool === "pan") document.body.style.cursor = "grab";
     else document.body.style.cursor = "crosshair";
   }, [selectedTool, game]);
 
@@ -163,6 +163,9 @@ export function CanvasComponent({
           break;
         case "6":
           setSelectedTool("eraser");
+          break;
+        case "7":
+          setSelectedTool("pan");
           break;
       }
     };
@@ -278,10 +281,11 @@ function Topbar({
       />
       <IconButton
         isActivated={selectedTool === "pan"}
-        icon={<MoveIcon />}
+        icon={<HandIcon />}
         onClick={() => {
           setSelectedTool("pan");
         }}
+        keybind="7"
         title="Pan Tool"
       />
       <IconButton

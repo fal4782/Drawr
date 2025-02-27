@@ -255,6 +255,7 @@ export class Game {
 
     if (this.selectedTool === "pan") {
       this.isDragging = true;
+      document.body.style.cursor = "grabbing";
       this.lastX = e.clientX;
       this.lastY = e.clientY;
       return;
@@ -307,7 +308,7 @@ export class Game {
             rect.y,
             rect.x,
             rect.y + rect.height
-          );  
+          );
 
           shouldKeep = !(
             distToTop <= tolerance ||
@@ -435,6 +436,8 @@ export class Game {
         })
       );
       return; // Exit early for pencil tool
+    } else if (selectedTool === "pan"){
+        document.body.style.cursor = "grab";
     }
     if (!newShape) {
       return;
