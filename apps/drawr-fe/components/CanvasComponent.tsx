@@ -7,11 +7,21 @@ import {
   BaselineIcon,
   RectangleHorizontalIcon,
   SlashIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  MoveIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
 
-type Tool = "circle" | "rectangle" | "line" | "eraser" | "pencil" | "text";
+type Tool =
+  | "circle"
+  | "rectangle"
+  | "line"
+  | "eraser"
+  | "pencil"
+  | "text"
+  | "pan";
 
 export function CanvasComponent({
   roomId,
@@ -72,6 +82,9 @@ export function CanvasComponent({
     circle: "Click and drag to set size",
     text: "Click anywhere to add text",
     eraser: "Click to erase",
+    pan: "Click and drag to move around",
+    // zoomin: "Click to zoom in",
+    // zoomout: "Click to zoom out",
   };
 
   const FloatingTextInput = () => {
@@ -88,9 +101,9 @@ export function CanvasComponent({
         ref={inputRef}
         className="fixed bg-transparent text-white outline-none text-lg"
         style={{
-          left: textInput.x,
-          top: textInput.y - 10,
-          fontSize: "20px",
+          left: textInput.x * game!.getScale() + game!.getOffsetX(),
+          top: textInput.y * game!.getScale() + game!.getOffsetY() - 10,
+          fontSize: `${20 * game!.getScale()}px`,
           color: selectedColor,
         }}
         onKeyDown={(e) => {
@@ -113,7 +126,9 @@ export function CanvasComponent({
     game?.setTool(selectedTool);
     if (selectedTool === "text") document.body.style.cursor = "text";
     else if (selectedTool === "eraser")
-      document.body.style.cursor = "url('/circle.png'), auto";
+      //   document.body.style.cursor = "url('/circle.png'), auto";
+      document.body.style.cursor = "crosshair";
+    else if (selectedTool === "pan") document.body.style.cursor = "move";
     else document.body.style.cursor = "crosshair";
   }, [selectedTool, game]);
 
@@ -163,18 +178,27 @@ export function CanvasComponent({
     <div className="overflow-hidden h-screen">
       <canvas
         ref={canvasRef}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={(e) => {
           if (selectedTool === "text") {
+            const transformedX =
+              (e.clientX - game!.getOffsetX()) / game!.getScale();
+            const transformedY =
+              (e.clientY - game!.getOffsetY()) / game!.getScale();
             setTextInput({
               isVisible: true,
-              x: e.clientX,
-              y: e.clientY,
+              x: transformedX,
+              y: transformedY,
             });
           }
         }}
       ></canvas>
       <FloatingTextInput />
-      <Topbar selectedTool={selectedTool} setSelectedTool={setSelectedTool} />
+      <Topbar
+        selectedTool={selectedTool}
+        setSelectedTool={setSelectedTool}
+        game={game}
+      />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
       </div>
@@ -189,9 +213,11 @@ export function CanvasComponent({
 function Topbar({
   selectedTool,
   setSelectedTool,
+  game,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
+  game: Game | null;
 }) {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300">
@@ -240,6 +266,7 @@ function Topbar({
         keybind="5"
         title="Text — 5"
       />
+      <div className="w-px h-6 bg-white/20" /> {/* Divider */}
       <IconButton
         isActivated={selectedTool === "eraser"}
         icon={<EraserIcon />}
@@ -248,6 +275,27 @@ function Topbar({
         }}
         keybind="6"
         title="Eraser — 6"
+      />
+      <IconButton
+        isActivated={selectedTool === "pan"}
+        icon={<MoveIcon />}
+        onClick={() => {
+          setSelectedTool("pan");
+          document.body.style.cursor = "move";
+        }}
+        title="Pan Tool"
+      />
+      <IconButton
+        icon={<ZoomInIcon />}
+        // isActivated={selectedTool === "zoomin"}
+        onClick={() => game?.zoomIn()}
+        title="Zoom In"
+      />
+      <IconButton
+        icon={<ZoomOutIcon />}
+        // isActivated={selectedTool === "zoomout"}
+        onClick={() => game?.zoomOut()}
+        title="Zoom Out"
       />
     </div>
   );

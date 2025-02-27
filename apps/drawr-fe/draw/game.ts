@@ -2,7 +2,14 @@ import { generateId } from "@/utils/generateId";
 import { getExistingShapes } from "./http";
 import { pointToLineDistance } from "@/utils/pointToLineDistance";
 
-type Tool = "circle" | "rectangle" | "line" | "eraser" | "pencil" | "text";
+type Tool =
+  | "circle"
+  | "rectangle"
+  | "line"
+  | "eraser"
+  | "pencil"
+  | "text"
+  | "pan";
 
 type Shape =
   | {
@@ -70,6 +77,12 @@ export class Game {
   private selectedTool = "circle";
   private currentPath: { x: number; y: number }[] = [];
   private strokeColor: string = "white";
+  private scale: number = 1;
+  private offsetX: number = 0;
+  private offsetY: number = 0;
+  private isDragging: boolean = false;
+  private lastX: number = 0;
+  private lastY: number = 0;
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -79,6 +92,7 @@ export class Game {
     this.clicked = false;
     this.init();
     this.initHandlers();
+    this.initZoomHandler();
     this.initMouseHandlers();
   }
 
@@ -137,11 +151,20 @@ export class Game {
     this.strokeColor = color;
   }
   clearCanvas() {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = "rgba(0,0,0)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.strokeStyle = "white";
-
+    // Apply transformations
+    this.ctx.setTransform(
+      this.scale,
+      0,
+      0,
+      this.scale,
+      this.offsetX,
+      this.offsetY
+    );
     this.existingShapes.map((element) => {
       if (element.shape.type === "rectangle") {
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
@@ -190,15 +213,58 @@ export class Game {
     });
   }
 
+  private initZoomHandler() {
+    this.canvas.addEventListener("wheel", (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      this.scale *= delta;
+      this.scale = Math.min(Math.max(0.1, this.scale), 10);
+      this.clearCanvas();
+    });
+  }
+
+  getScale() {
+    return this.scale;
+  }
+
+  getOffsetX() {
+    return this.offsetX;
+  }
+
+  getOffsetY() {
+    return this.offsetY;
+  }
+
+  zoomIn() {
+    this.scale *= 1.2;
+    this.scale = Math.min(this.scale, 10);
+    this.clearCanvas();
+  }
+
+  zoomOut() {
+    this.scale *= 0.8;
+    this.scale = Math.max(this.scale, 0.1);
+    this.clearCanvas();
+  }
   mouseDownHandler = (e: MouseEvent) => {
     this.clicked = true;
-    this.startX = e.clientX;
-    this.startY = e.clientY;
+    // this.startX = e.clientX;
+    // this.startY = e.clientY;
+    this.startX = (e.clientX - this.offsetX) / this.scale;
+    this.startY = (e.clientY - this.offsetY) / this.scale;
 
+    if (this.selectedTool === "pan") {
+      this.isDragging = true;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      return;
+    }
     if (this.selectedTool === "eraser") {
       const eraserRadius = 8;
-      const eraserX = e.clientX + eraserRadius; // Adjust the x-coordinate to center the eraser
-      const eraserY = e.clientY + eraserRadius; // Adjust the y-coordinate to center the eraser
+      const transformedX = (e.clientX - this.offsetX) / this.scale;
+      const transformedY = (e.clientY - this.offsetY) / this.scale;
+      const eraserX = transformedX + eraserRadius; // Adjust the x-coordinate to center the eraser
+      const eraserY = transformedY + eraserRadius; // Adjust the y-coordinate to center the eraser
 
       this.existingShapes = this.existingShapes.filter((element) => {
         let shouldKeep = true;
@@ -208,8 +274,8 @@ export class Game {
           const tolerance = 5;
 
           const distToTop = pointToLineDistance(
-            eraserX,
-            eraserY,
+            transformedX,
+            transformedY,
             rect.x,
             rect.y,
             rect.x + rect.width,
@@ -217,8 +283,8 @@ export class Game {
           );
 
           const distToRight = pointToLineDistance(
-            eraserX,
-            eraserY,
+            transformedX,
+            transformedY,
             rect.x + rect.width,
             rect.y,
             rect.x + rect.width,
@@ -226,8 +292,8 @@ export class Game {
           );
 
           const distToBottom = pointToLineDistance(
-            eraserX,
-            eraserY,
+            transformedX,
+            transformedY,
             rect.x,
             rect.y + rect.height,
             rect.x + rect.width,
@@ -235,13 +301,13 @@ export class Game {
           );
 
           const distToLeft = pointToLineDistance(
-            eraserX,
-            eraserY,
+            transformedX,
+            transformedY,
             rect.x,
             rect.y,
             rect.x,
             rect.y + rect.height
-          );
+          );  
 
           shouldKeep = !(
             distToTop <= tolerance ||
@@ -302,9 +368,14 @@ export class Game {
     }
   };
   mouseUpHandler = (e: MouseEvent) => {
+    this.isDragging = false;
     this.clicked = false;
-    const width = e.clientX - this.startX;
-    const height = e.clientY - this.startY;
+
+    const transformedX = (e.clientX - this.offsetX) / this.scale;
+    const transformedY = (e.clientY - this.offsetY) / this.scale;
+
+    const width = transformedX - this.startX;
+    const height = transformedY - this.startY;
 
     const selectedTool = this.selectedTool;
     let newShape: Shape | null = null;
@@ -314,8 +385,8 @@ export class Game {
         shape: {
           type: "rectangle",
           strokeColor: this.strokeColor,
-          x: Math.min(this.startX, e.clientX),
-          y: Math.min(this.startY, e.clientY),
+          x: Math.min(this.startX, transformedX),
+          y: Math.min(this.startY, transformedY),
           height: Math.abs(height),
           width: Math.abs(width),
         },
@@ -340,8 +411,8 @@ export class Game {
           strokeColor: this.strokeColor,
           startX: this.startX,
           startY: this.startY,
-          endX: e.clientX,
-          endY: e.clientY,
+          endX: transformedX,
+          endY: transformedY,
         },
       };
     } else if (selectedTool === "pencil" && this.currentPath.length > 0) {
@@ -378,21 +449,32 @@ export class Game {
       })
     );
 
-    //
-
     this.clearCanvas();
   };
   mouseMoveHandler = (e: MouseEvent) => {
+    if (this.isDragging) {
+      const dx = e.clientX - this.lastX;
+      const dy = e.clientY - this.lastY;
+      this.offsetX += dx;
+      this.offsetY += dy;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.clearCanvas();
+      return;
+    }
     if (this.clicked) {
-      const width = e.clientX - this.startX;
-      const height = e.clientY - this.startY;
+      const transformedX = (e.clientX - this.offsetX) / this.scale;
+      const transformedY = (e.clientY - this.offsetY) / this.scale;
+      const width = transformedX - this.startX;
+      const height = transformedY - this.startY;
+
       this.clearCanvas();
       this.ctx.strokeStyle = this.strokeColor || "rgba(255, 255, 255)";
 
       if (this.selectedTool === "rectangle") {
         this.ctx.strokeRect(
-          Math.min(this.startX, e.clientX),
-          Math.min(this.startY, e.clientY),
+          Math.min(this.startX, transformedX),
+          Math.min(this.startY, transformedY),
           Math.abs(width),
           Math.abs(height)
         );
@@ -407,11 +489,11 @@ export class Game {
       } else if (this.selectedTool === "line") {
         this.ctx.beginPath();
         this.ctx.moveTo(this.startX, this.startY);
-        this.ctx.lineTo(e.clientX, e.clientY);
+        this.ctx.lineTo(transformedX, transformedY);
         this.ctx.stroke();
         this.ctx.closePath();
       } else if (this.selectedTool === "pencil") {
-        this.currentPath.push({ x: e.clientX, y: e.clientY });
+        this.currentPath.push({ x: transformedX, y: transformedY });
         this.clearCanvas();
         // Draw the current path
         this.ctx.beginPath();
