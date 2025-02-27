@@ -220,7 +220,7 @@ function Topbar({
   game: Game | null;
 }) {
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300">
       <IconButton
         isActivated={selectedTool === "pencil"}
         icon={<PencilIcon />}
@@ -266,7 +266,7 @@ function Topbar({
         keybind="5"
         title="Text — 5"
       />
-      <div className="w-px h-6 bg-white/20" /> {/* Divider */}
+      <div className="w-px h-8 bg-white/20" /> {/* Divider */}
       <IconButton
         isActivated={selectedTool === "eraser"}
         icon={<EraserIcon />}
@@ -281,19 +281,16 @@ function Topbar({
         icon={<MoveIcon />}
         onClick={() => {
           setSelectedTool("pan");
-          document.body.style.cursor = "move";
         }}
         title="Pan Tool"
       />
       <IconButton
         icon={<ZoomInIcon />}
-        // isActivated={selectedTool === "zoomin"}
         onClick={() => game?.zoomIn()}
         title="Zoom In"
       />
       <IconButton
         icon={<ZoomOutIcon />}
-        // isActivated={selectedTool === "zoomout"}
         onClick={() => game?.zoomOut()}
         title="Zoom Out"
       />
