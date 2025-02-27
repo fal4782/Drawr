@@ -7,9 +7,9 @@ import {
   BaselineIcon,
   RectangleHorizontalIcon,
   SlashIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
   HandIcon,
+  MinusIcon,
+  PlusIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -34,6 +34,7 @@ export function CanvasComponent({
   const [game, setGame] = useState<Game | null>(null);
   const pageSize = usePageSize();
   const [selectedColor, setSelectedColor] = useState<string>("white");
+  const zoomOnScroll = false;
 
   useEffect(() => {
     game?.setStrokeColor(selectedColor);
@@ -134,7 +135,7 @@ export function CanvasComponent({
 
   useEffect(() => {
     if (canvasRef.current && roomId) {
-      const g = new Game(canvasRef.current, roomId, socket);
+      const g = new Game(canvasRef.current, roomId, socket, zoomOnScroll);
       setGame(g);
     }
 
@@ -197,11 +198,7 @@ export function CanvasComponent({
         }}
       ></canvas>
       <FloatingTextInput />
-      <Topbar
-        selectedTool={selectedTool}
-        setSelectedTool={setSelectedTool}
-        game={game}
-      />
+      <Topbar selectedTool={selectedTool} setSelectedTool={setSelectedTool} />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
       </div>
@@ -209,6 +206,7 @@ export function CanvasComponent({
         selectedColor={selectedColor}
         setSelectedColor={setSelectedColor}
       />
+      <ZoomBar game={game} />
     </div>
   );
 }
@@ -216,11 +214,9 @@ export function CanvasComponent({
 function Topbar({
   selectedTool,
   setSelectedTool,
-  game,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
-  game: Game | null;
 }) {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300">
@@ -288,16 +284,6 @@ function Topbar({
         keybind="7"
         title="Pan Tool"
       />
-      <IconButton
-        icon={<ZoomInIcon />}
-        onClick={() => game?.zoomIn()}
-        title="Zoom In"
-      />
-      <IconButton
-        icon={<ZoomOutIcon />}
-        onClick={() => game?.zoomOut()}
-        title="Zoom Out"
-      />
     </div>
   );
 }
@@ -335,6 +321,33 @@ function ColorBar({
             }`}
         />
       ))}
+    </div>
+  );
+}
+
+function ZoomBar({ game }: { game: Game | null }) {
+  const [scale, setScale] = useState(1);
+  return (
+    <div className="fixed bottom-4 left-4 flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20">
+      <IconButton
+        icon={<MinusIcon />}
+        onClick={() => {
+          game?.zoomOut();
+          setScale(game?.getScale() || 1);
+        }}
+        title="Zoom Out"
+      />
+      <span className="text-white/70 text-sm min-w-[3rem] text-center">
+        {Math.round(scale * 100)}%{" "}
+      </span>
+      <IconButton
+        icon={<PlusIcon />}
+        onClick={() => {
+          game?.zoomIn();
+          setScale(game?.getScale() || 1);
+        }}
+        title="Zoom In"
+      />
     </div>
   );
 }

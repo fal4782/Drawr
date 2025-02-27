@@ -83,7 +83,12 @@ export class Game {
   private isDragging: boolean = false;
   private lastX: number = 0;
   private lastY: number = 0;
-  constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    roomId: string,
+    socket: WebSocket,
+    zoomOnScroll: boolean = false
+  ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.existingShapes = [];
@@ -92,7 +97,9 @@ export class Game {
     this.clicked = false;
     this.init();
     this.initHandlers();
-    this.initZoomHandler();
+    if (zoomOnScroll) {
+      this.initZoomHandler();
+    }
     this.initMouseHandlers();
   }
 
@@ -436,8 +443,8 @@ export class Game {
         })
       );
       return; // Exit early for pencil tool
-    } else if (selectedTool === "pan"){
-        document.body.style.cursor = "grab";
+    } else if (selectedTool === "pan") {
+      document.body.style.cursor = "grab";
     }
     if (!newShape) {
       return;
