@@ -282,8 +282,8 @@ export class Game {
           const tolerance = 5;
 
           const distToTop = pointToLineDistance(
-            transformedX,
-            transformedY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y,
             rect.x + rect.width,
@@ -291,8 +291,8 @@ export class Game {
           );
 
           const distToRight = pointToLineDistance(
-            transformedX,
-            transformedY,
+            eraserX,
+            eraserY,
             rect.x + rect.width,
             rect.y,
             rect.x + rect.width,
@@ -300,8 +300,8 @@ export class Game {
           );
 
           const distToBottom = pointToLineDistance(
-            transformedX,
-            transformedY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y + rect.height,
             rect.x + rect.width,
@@ -309,8 +309,8 @@ export class Game {
           );
 
           const distToLeft = pointToLineDistance(
-            transformedX,
-            transformedY,
+            eraserX,
+            eraserY,
             rect.x,
             rect.y,
             rect.x,
@@ -346,8 +346,8 @@ export class Game {
           const isPointInPoints = element.shape.points.some(
             (point) =>
               (point.x === eraserX && point.y === eraserY) ||
-              (Math.abs(point.x - e.clientX) < 10 &&
-                Math.abs(point.y - e.clientY) < 10)
+              (Math.abs(point.x - eraserX) < 10 &&
+                Math.abs(point.y - eraserY ) < 10)
           );
           shouldKeep = !isPointInPoints;
         } else if (element.shape.type === "text") {

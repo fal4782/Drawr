@@ -127,8 +127,7 @@ export function CanvasComponent({
     game?.setTool(selectedTool);
     if (selectedTool === "text") document.body.style.cursor = "text";
     else if (selectedTool === "eraser")
-      //   document.body.style.cursor = "url('/circle.png'), auto";
-      document.body.style.cursor = "crosshair";
+      document.body.style.cursor = "url('/circle.png'), auto";
     else if (selectedTool === "pan") document.body.style.cursor = "grab";
     else document.body.style.cursor = "crosshair";
   }, [selectedTool, game]);
@@ -293,7 +292,7 @@ function ColorBar({
   setSelectedColor,
 }: {
   selectedColor: string;
-  setSelectedColor: (color: any) => void;
+  setSelectedColor: (color: string) => void;
 }) {
   const colors = [
     "#FFFFFF",
