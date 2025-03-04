@@ -27,7 +27,10 @@ async function getRooms(token: string) {
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  const username = session?.user.email.split("@")[0];
+  const username =
+    session?.provider === "google"
+      ? session.user.name
+      : session?.user.email.split("@")[0];
   const usernameCapitalized =
     username.charAt(0).toUpperCase() + username.slice(1);
 

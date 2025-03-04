@@ -80,7 +80,7 @@ app.post("/signin", async (req, res) => {
       where: { email },
     });
 
-    if (!user) {
+    if (!user || !user.password) {
       res
         .status(401)
         .json({ message: "User with this email ID does not exist" });
@@ -99,6 +99,34 @@ app.post("/signin", async (req, res) => {
     res.json({ message: "Login Successful", token, userId: user.id });
   } catch (e) {
     console.log(e);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+});
+
+app.post("/google-auth", async (req, res) => {
+  const { email, name, providerId } = req.body;
+
+  try {
+    let user = await prismaClient.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      user = await prismaClient.user.create({
+        data: {
+          email,
+          username: name,
+          provider: "google",
+          providerAccountId: providerId,
+          password: "", // Empty password for Google users
+        },
+      });
+    }
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET);
+    res.json({ message: "Login Successful", token, userId: user.id });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ message: "Something went wrong" });
   }
 });
