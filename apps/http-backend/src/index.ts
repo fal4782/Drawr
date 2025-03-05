@@ -87,6 +87,12 @@ app.post("/signin", async (req, res) => {
       return;
     }
 
+    // Check if user is a Google-authenticated user
+    if (user.provider === "google") {
+      res.status(401).json({ message: "Please sign in with Google" });
+      return;
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
