@@ -218,7 +218,7 @@ function Topbar({
   setSelectedTool: (shape: Tool) => void;
 }) {
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300 cursor-default">
       <IconButton
         isActivated={selectedTool === "pencil"}
         icon={<PencilIcon />}
@@ -306,7 +306,7 @@ function ColorBar({
   ];
 
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/20">
+    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/20 cursor-default">
       {colors.map((color) => (
         <button
           key={color}
@@ -327,7 +327,7 @@ function ColorBar({
 function ZoomBar({ game }: { game: Game | null }) {
   const [scale, setScale] = useState(1);
   return (
-    <div className="fixed bottom-4 left-4 flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20">
+    <div className="fixed bottom-4 left-4 flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 cursor-default">
       <IconButton
         icon={<MinusIcon />}
         onClick={() => {
