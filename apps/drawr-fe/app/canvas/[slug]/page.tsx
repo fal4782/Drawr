@@ -1,4 +1,4 @@
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { RoomCanvasComponent } from "@/components/RoomCanvasComponent";
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
