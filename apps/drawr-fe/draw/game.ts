@@ -74,7 +74,7 @@ export class Game {
   private clicked: boolean;
   private startX: number = 0;
   private startY: number = 0;
-  private selectedTool = "circle";
+  private selectedTool = "pencil";
   private currentPath: { x: number; y: number }[] = [];
   private strokeColor: string = "white";
   private scale: number = 1;
@@ -347,7 +347,7 @@ export class Game {
             (point) =>
               (point.x === eraserX && point.y === eraserY) ||
               (Math.abs(point.x - eraserX) < 10 &&
-                Math.abs(point.y - eraserY ) < 10)
+                Math.abs(point.y - eraserY) < 10)
           );
           shouldKeep = !isPointInPoints;
         } else if (element.shape.type === "text") {

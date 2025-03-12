@@ -31,14 +31,14 @@ export function CanvasComponent({
   socket: WebSocket;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [game, setGame] = useState<Game | null>(null);
+  const gameRef = useRef<Game | null>(null);
   const pageSize = usePageSize();
   const [selectedColor, setSelectedColor] = useState<string>("white");
   const zoomOnScroll = false;
 
   useEffect(() => {
-    game?.setStrokeColor(selectedColor);
-  }, [selectedColor, game]);
+    gameRef.current?.setStrokeColor(selectedColor);
+  }, [selectedColor]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -66,7 +66,7 @@ export function CanvasComponent({
 
     ctx.drawImage(tempCanvas, 0, 0);
 
-    game?.clearCanvas();
+    gameRef.current?.clearCanvas();
   }, [pageSize]);
 
   const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
@@ -84,8 +84,6 @@ export function CanvasComponent({
     text: "Click anywhere to add text",
     eraser: "Click to erase",
     pan: "Click and drag to move around",
-    // zoomin: "Click to zoom in",
-    // zoomout: "Click to zoom out",
   };
 
   const FloatingTextInput = () => {
@@ -95,21 +93,30 @@ export function CanvasComponent({
       if (inputRef.current) {
         inputRef.current.focus();
       }
-    }, [textInput.isVisible]);
+    }, []);
 
     return textInput.isVisible ? (
       <input
         ref={inputRef}
         className="fixed bg-transparent text-white outline-none text-lg"
         style={{
-          left: textInput.x * game!.getScale() + game!.getOffsetX(),
-          top: textInput.y * game!.getScale() + game!.getOffsetY() - 10,
-          fontSize: `${20 * game!.getScale()}px`,
+          left:
+            textInput.x * gameRef.current!.getScale() +
+            gameRef.current!.getOffsetX(),
+          top:
+            textInput.y * gameRef.current!.getScale() +
+            gameRef.current!.getOffsetY() -
+            10,
+          fontSize: `${20 * gameRef.current!.getScale()}px`,
           color: selectedColor,
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && e.currentTarget.value) {
-            game?.addText(e.currentTarget.value, textInput.x, textInput.y);
+            gameRef.current?.addText(
+              e.currentTarget.value,
+              textInput.x,
+              textInput.y
+            );
             setTextInput({ ...textInput, isVisible: false });
             document.body.style.cursor = "crosshair";
           }
@@ -124,24 +131,27 @@ export function CanvasComponent({
   };
 
   useEffect(() => {
-    game?.setTool(selectedTool);
+    gameRef.current?.setTool(selectedTool);
     if (selectedTool === "text") document.body.style.cursor = "text";
     else if (selectedTool === "eraser")
       document.body.style.cursor = "url('/circle.png'), auto";
     else if (selectedTool === "pan") document.body.style.cursor = "grab";
     else document.body.style.cursor = "crosshair";
-  }, [selectedTool, game]);
+  }, [selectedTool]);
 
   useEffect(() => {
     if (canvasRef.current && roomId) {
-      const g = new Game(canvasRef.current, roomId, socket, zoomOnScroll);
-      setGame(g);
+      gameRef.current = new Game(
+        canvasRef.current,
+        roomId,
+        socket,
+        zoomOnScroll
+      );
     }
-
     return () => {
-      game?.destroy();
+      gameRef.current?.destroy();
     };
-  }, [roomId, socket]);
+  }, [roomId, socket, zoomOnScroll]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -185,9 +195,11 @@ export function CanvasComponent({
         onClick={(e) => {
           if (selectedTool === "text") {
             const transformedX =
-              (e.clientX - game!.getOffsetX()) / game!.getScale();
+              (e.clientX - gameRef.current!.getOffsetX()) /
+              gameRef.current!.getScale();
             const transformedY =
-              (e.clientY - game!.getOffsetY()) / game!.getScale();
+              (e.clientY - gameRef.current!.getOffsetY()) /
+              gameRef.current!.getScale();
             setTextInput({
               isVisible: true,
               x: transformedX,
@@ -205,7 +217,7 @@ export function CanvasComponent({
         selectedColor={selectedColor}
         setSelectedColor={setSelectedColor}
       />
-      <ZoomBar game={game} />
+      <ZoomBar game={gameRef.current} />
     </div>
   );
 }
