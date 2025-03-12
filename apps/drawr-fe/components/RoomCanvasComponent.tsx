@@ -54,7 +54,7 @@ export function RoomCanvasComponent({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       ws.close();
     };
-  }, []);
+  }, [roomId, wsUrl]);
 
   if (!socket) {
     return <WSLoader />;
