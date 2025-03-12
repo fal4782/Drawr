@@ -29,14 +29,10 @@ async function getRoom(slug: string, token: string) {
   }
   return roomId;
 }
-
-export default async function Canvas({
-  params,
-}: {
-  params: {
-    slug: string;
-  };
-}) {
+type PageProps = {
+  params: Promise<{ slug: string }> & { slug: string };
+};
+export default async function Canvas({ params }: PageProps) {
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
     redirect("/signin");
