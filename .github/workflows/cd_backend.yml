@@ -21,7 +21,7 @@ jobs:
         with:
           context: .
           file: ./docker/Dockerfile.backend
-          build_args:
+          build_args: |
             - DATABASE_URL=${{ secrets.DATABASE_URL }}
           push: true
           tags: fal4782/drawr-backend:${{ github.sha }}
