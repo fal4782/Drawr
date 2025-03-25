@@ -2,6 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /user/src/app
 
+# Install pnpm globally
+RUN npm install -g pnpm
+
 COPY ./packages ./packages
 COPY ./pnpm-lock.yaml ./pnpm-lock.yaml
 
