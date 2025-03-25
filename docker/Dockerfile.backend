@@ -2,7 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /user/src/app
 
-# Install pnpm globally
+ARG DATABASE_URL
+
 RUN npm install -g pnpm
 
 COPY ./packages ./packages
@@ -14,7 +15,7 @@ COPY ./turbo.json ./turbo.json
 COPY ./apps/http-backend ./apps/http-backend
 
 RUN pnpm install
-RUN pnpm run db:generate
+RUN DATABASE_URL=${DATABASE_URL} pnpm run db:generate
 
 EXPOSE 8080
 

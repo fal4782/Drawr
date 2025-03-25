@@ -1,18 +1,22 @@
-FROM oven/bun:1
+FROM node:20-alpine
 
 WORKDIR /user/src/app
 
+# Install pnpm globally
+RUN npm install -g pnpm
+
+
 COPY ./packages ./packages
-COPY ./bun.lock ./bun.lock
+COPY ./pnpm-lock.yaml ./pnpm-lock.yaml
 
 COPY ./package.json ./package.json
 COPY ./turbo.json ./turbo.json
 
 COPY ./apps/ws-backend ./apps/ws-backend
 
-RUN bun install
-RUN bun run db:generate
+RUN pnpm install
+RUN pnpm run db:generate
 
 EXPOSE 8081
 
-CMD [ "bun", "run", "start:ws" ]
+CMD [ "pnpm", "run", "start:ws" ]
