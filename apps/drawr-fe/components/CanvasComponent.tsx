@@ -162,6 +162,9 @@ export function CanvasComponent({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in text input
+      if (textInput.isVisible) return;
+
       switch (e.key) {
         case "1":
           setSelectedTool("pencil");
@@ -184,6 +187,18 @@ export function CanvasComponent({
         case "7":
           setSelectedTool("pan");
           break;
+      }
+      // Handle Ctrl+S for download
+      if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+        handleDownload();
+        return;
+      }
+      // Handle Ctrl+H for back to dashboard
+      if (e.ctrlKey && e.key === "h") {
+        e.preventDefault();
+        router.push("/dashboard");
+        return;
       }
     };
 
@@ -340,14 +355,16 @@ function Topbar({
       <IconButton
         icon={<FullscreenIcon />}
         onClick={handleDownload}
-        title="Save current view as PNG"
+        keybind="^S"
+        title="Save current view as PNG (Ctrl+S)"
       />
       <IconButton
         icon={<HouseIcon />}
         onClick={() => {
           router.push("/dashboard");
         }}
-        title="Back to Dashboard"
+        keybind="^H"
+        title="Back to Dashboard (Ctrl+H)"
       />
     </div>
   );

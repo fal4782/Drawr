@@ -36,7 +36,7 @@ export function IconButton({
     >
       {icon}
       {keybind && (
-        <span className="absolute bottom-1 right-1 text-[10px] text-white/50">
+        <span className="absolute bottom-0 right-0 text-[10px] text-white/50">
           {keybind}
         </span>
       )}
