@@ -11,6 +11,7 @@ import {
   MinusIcon,
   PlusIcon,
   ArrowLeftToLineIcon,
+  HouseIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -305,7 +306,7 @@ function Topbar({
         title="Pan Tool"
       />
       <IconButton
-        icon={<ArrowLeftToLineIcon />}
+        icon={<HouseIcon />}
         onClick={() => {
           router.push("/dashboard");
         }}
