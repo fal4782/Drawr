@@ -10,7 +10,6 @@ import {
   HandIcon,
   MinusIcon,
   PlusIcon,
-  ArrowLeftToLineIcon,
   HouseIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
