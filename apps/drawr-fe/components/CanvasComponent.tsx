@@ -11,6 +11,7 @@ import {
   MinusIcon,
   PlusIcon,
   HouseIcon,
+  FullscreenIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -193,6 +194,32 @@ export function CanvasComponent({
     };
   }, []);
 
+  const handleDownload = () => {
+    if (!gameRef.current) return;
+
+    // Get the data URL from the game
+    const dataUrl = gameRef.current.exportAsPNG();
+
+    // Get current date and time
+    const today = new Date();
+    const dateStr = today.toISOString().split("T")[0].replace(/-/g, ""); // YYYYMMDD
+    const timeStr = today
+      .toTimeString()
+      .split(" ")[0]
+      .replace(/:/g, "")
+      .substring(0, 6); // HHMMSS
+
+    // Create a temporary link element
+    const link = document.createElement("a");
+    link.download = `drawr-room${roomId}-${dateStr}${timeStr}.png`;
+    link.href = dataUrl;
+
+    // Append to the document, click it, and remove it
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="overflow-hidden h-screen">
       <canvas
@@ -218,6 +245,7 @@ export function CanvasComponent({
       <Topbar
         selectedTool={selectedTool}
         setSelectedTool={setSelectedTool}
+        handleDownload={handleDownload}
         router={router}
       />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
@@ -235,10 +263,12 @@ export function CanvasComponent({
 function Topbar({
   selectedTool,
   setSelectedTool,
+  handleDownload,
   router,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
+  handleDownload: () => void;
   router: ReturnType<typeof useRouter>;
 }) {
   return (
@@ -306,6 +336,11 @@ function Topbar({
         }}
         keybind="7"
         title="Pan Tool"
+      />
+      <IconButton
+        icon={<FullscreenIcon />}
+        onClick={handleDownload}
+        title="Save current view as PNG"
       />
       <IconButton
         icon={<HouseIcon />}
