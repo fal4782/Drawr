@@ -82,7 +82,7 @@ Drawr is a web-based canvas application that enables users to draw shapes togeth
 
    ```bash
    cd ../..
-   pnpm start
+   pnpm dev
    ```
 
 6. Open your browser and navigate to the URL specified in your NEXTAUTH_URL
@@ -99,7 +99,3 @@ Drawr is a web-based canvas application that enables users to draw shapes togeth
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
