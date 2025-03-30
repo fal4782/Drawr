@@ -350,13 +350,13 @@ function Topbar({
           setSelectedTool("pan");
         }}
         keybind="7"
-        title="Pan Tool"
+        title="Pan Tool — 7"
       />
       <IconButton
         icon={<FullscreenIcon />}
         onClick={handleDownload}
         keybind="^S"
-        title="Save current view as PNG (Ctrl+S)"
+        title="Save current view as PNG — Ctrl+S"
       />
       <IconButton
         icon={<HouseIcon />}
@@ -364,7 +364,7 @@ function Topbar({
           router.push("/dashboard");
         }}
         keybind="^H"
-        title="Back to Dashboard (Ctrl+H)"
+        title="Back to Dashboard — Ctrl+H"
       />
     </div>
   );
