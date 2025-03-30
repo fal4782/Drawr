@@ -10,9 +10,11 @@ import {
   HandIcon,
   MinusIcon,
   PlusIcon,
+  ArrowLeftToLineIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
+import { useRouter } from "next/navigation";
 
 type Tool =
   | "circle"
@@ -35,6 +37,7 @@ export function CanvasComponent({
   const pageSize = usePageSize();
   const [selectedColor, setSelectedColor] = useState<string>("white");
   const zoomOnScroll = false;
+  const router = useRouter();
 
   useEffect(() => {
     gameRef.current?.setStrokeColor(selectedColor);
@@ -209,7 +212,11 @@ export function CanvasComponent({
         }}
       ></canvas>
       <FloatingTextInput />
-      <Topbar selectedTool={selectedTool} setSelectedTool={setSelectedTool} />
+      <Topbar
+        selectedTool={selectedTool}
+        setSelectedTool={setSelectedTool}
+        router={router}
+      />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
       </div>
@@ -225,9 +232,11 @@ export function CanvasComponent({
 function Topbar({
   selectedTool,
   setSelectedTool,
+  router,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
+  router: ReturnType<typeof useRouter>;
 }) {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300 cursor-default">
@@ -294,6 +303,13 @@ function Topbar({
         }}
         keybind="7"
         title="Pan Tool"
+      />
+      <IconButton
+        icon={<ArrowLeftToLineIcon />}
+        onClick={() => {
+          router.push("/dashboard");
+        }}
+        title="Back to Dashboard"
       />
     </div>
   );
