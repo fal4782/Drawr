@@ -38,6 +38,7 @@ export function CanvasComponent({
   const [selectedColor, setSelectedColor] = useState<string>("white");
   const zoomOnScroll = false;
   const router = useRouter();
+  const [gameInitialized, setGameInitialized] = useState(false);
 
   useEffect(() => {
     gameRef.current?.setStrokeColor(selectedColor);
@@ -150,6 +151,8 @@ export function CanvasComponent({
         socket,
         zoomOnScroll
       );
+      // Set the initialized state to true
+      setGameInitialized(true);
     }
     return () => {
       gameRef.current?.destroy();
@@ -224,7 +227,7 @@ export function CanvasComponent({
         selectedColor={selectedColor}
         setSelectedColor={setSelectedColor}
       />
-      <ZoomBar game={gameRef.current} />
+      {gameInitialized && <ZoomBar game={gameRef.current} />}
     </div>
   );
 }
@@ -353,15 +356,31 @@ function ColorBar({
 }
 
 function ZoomBar({ game }: { game: Game | null }) {
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(() => game?.getScale() || 1);
+  useEffect(() => {
+    if (game) {
+      setScale(game.getScale());
+    }
+  }, [game]);
+
+  const handleZoom = (zoomType: "in" | "out") => {
+    if (!game) return;
+
+    if (zoomType === "in") {
+      game.zoomIn();
+    } else {
+      game.zoomOut();
+    }
+
+    // Update scale after zoom operation
+    setScale(game.getScale());
+  };
+
   return (
     <div className="fixed bottom-4 left-4 flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 cursor-default">
       <IconButton
         icon={<MinusIcon />}
-        onClick={() => {
-          game?.zoomOut();
-          setScale(game?.getScale() || 1);
-        }}
+        onClick={() => handleZoom("out")}
         title="Zoom Out"
       />
       <span className="text-white/70 text-sm min-w-[3rem] text-center">
@@ -369,10 +388,7 @@ function ZoomBar({ game }: { game: Game | null }) {
       </span>
       <IconButton
         icon={<PlusIcon />}
-        onClick={() => {
-          game?.zoomIn();
-          setScale(game?.getScale() || 1);
-        }}
+        onClick={() => handleZoom("in")}
         title="Zoom In"
       />
     </div>
