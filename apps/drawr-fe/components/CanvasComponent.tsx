@@ -198,6 +198,7 @@ export function CanvasComponent({
       if (e.ctrlKey && e.key === "h") {
         e.preventDefault();
         router.push("/dashboard");
+        document.body.style.cursor = "default";
         return;
       }
     };
@@ -362,6 +363,7 @@ function Topbar({
         icon={<HouseIcon />}
         onClick={() => {
           router.push("/dashboard");
+          document.body.style.cursor = "default";
         }}
         keybind="^H"
         title="Back to Dashboard — Ctrl+H"
