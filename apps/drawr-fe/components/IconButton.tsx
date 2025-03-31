@@ -25,6 +25,8 @@ export function IconButton({
         transform 
         hover:scale-110
         active:scale-95
+        relative
+        group
         ${
           isActivated
             ? "bg-white/20 text-white ring-2 ring-white/30 shadow-sm shadow-white/20"
@@ -36,7 +38,13 @@ export function IconButton({
     >
       {icon}
       {keybind && (
-        <span className="absolute bottom-0 right-0 text-[10px] text-white/50">
+        <span
+          className={`
+            absolute bottom-0 right-0 text-[10px] text-white/50
+            transition-opacity duration-200
+            ${isActivated ? "opacity-0" : "group-hover:opacity-0"}
+          `}
+        >
           {keybind}
         </span>
       )}
