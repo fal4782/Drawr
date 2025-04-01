@@ -9,11 +9,12 @@ Drawr is a web-based canvas application that enables users to draw shapes togeth
 ## Features
 
 - **Real-time Collaboration**: Draw together with others in the same room
-- **Multiple Shape Support**: Create various shapes including rectangles and circles
+- **Multiple Shape Support**: Create various shapes including rectangles, circles, lines, text and freehand (pencil)
 - **Custom Colors**: Choose different colors for your drawings
 - **Pan & Zoom**: Navigate around large canvases with pan and zoom functionality
+- **Undo & Redo**: Easily correct mistakes with undo and redo functionality
+- **Export Canvas**: Save the canvas view as PNG images
 - **User Authentication**: Secure access with Google authentication
-
 
 ## Technical Stack
 
