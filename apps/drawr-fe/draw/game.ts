@@ -83,6 +83,8 @@ export class Game {
   private isDragging: boolean = false;
   private lastX: number = 0;
   private lastY: number = 0;
+  private undoStack: Shape[] = [];
+  private redoStack: Shape[] = [];
   constructor(
     canvas: HTMLCanvasElement,
     roomId: string,
@@ -121,6 +123,7 @@ export class Game {
       },
     };
     this.existingShapes.push(newShape);
+    this.clearRedoStack(); // Clear redo stack when new text is added
     this.socket.send(
       JSON.stringify({
         type: "chat",
@@ -132,6 +135,8 @@ export class Game {
   }
 
   async init() {
+    this.undoStack = [];
+    this.redoStack = [];
     this.existingShapes = await getExistingShapes(this.roomId);
     this.clearCanvas();
   }
@@ -275,6 +280,65 @@ export class Game {
     return tempCanvas.toDataURL("image/png");
   }
 
+  undo() {
+    if (this.existingShapes.length > 0) {
+      // Take the last shape and move it to the redo stack
+      const lastShape = this.existingShapes.pop();
+      if (lastShape) {
+        this.redoStack.push(lastShape);
+
+        // If it was added via socket, send delete message
+        if (lastShape.id) {
+          this.socket.send(
+            JSON.stringify({
+              type: "delete_message",
+              roomId: Number(this.roomId),
+              messageId: lastShape.id,
+            })
+          );
+        }
+
+        this.clearCanvas();
+      }
+    }
+  }
+
+  redo() {
+    if (this.redoStack.length > 0) {
+      // Take the last undone shape and add it back
+      const shapeToRedo = this.redoStack.pop();
+      if (shapeToRedo) {
+        this.existingShapes.push(shapeToRedo);
+
+        // If it has an ID, send it back to the server
+        if (shapeToRedo.id) {
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              message: JSON.stringify(shapeToRedo),
+              roomId: Number(this.roomId),
+            })
+          );
+        }
+
+        this.clearCanvas();
+      }
+    }
+  }
+
+  canUndo(): boolean {
+    return this.existingShapes.length > 0;
+  }
+
+  canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  // Clear redo stack when a new action is performed
+  clearRedoStack() {
+    this.redoStack = [];
+  }
+
   mouseDownHandler = (e: MouseEvent) => {
     this.clicked = true;
     // this.startX = e.clientX;
@@ -393,6 +457,7 @@ export class Game {
         return shouldKeep;
       });
 
+      this.clearRedoStack(); // Clear redo stack when shapes are erased
       this.clearCanvas();
       return;
     }
@@ -472,6 +537,7 @@ export class Game {
       return;
     }
     this.existingShapes.push(newShape);
+    this.clearRedoStack(); // Clear redo stack when new shape is added
 
     this.socket.send(
       JSON.stringify({

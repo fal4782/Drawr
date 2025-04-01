@@ -12,6 +12,8 @@ import {
   PlusIcon,
   HouseIcon,
   FullscreenIcon,
+  Undo2Icon,
+  Redo2Icon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -201,6 +203,19 @@ export function CanvasComponent({
         document.body.style.cursor = "default";
         return;
       }
+      // Handle Ctrl+Z for undo
+      if (e.ctrlKey && e.key === "z") {
+        e.preventDefault();
+        gameRef.current?.undo();
+        return;
+      }
+
+      // Handle Ctrl+Y for redo
+      if (e.ctrlKey && e.key === "y") {
+        e.preventDefault();
+        gameRef.current?.redo();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -208,7 +223,7 @@ export function CanvasComponent({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [textInput.isVisible]);
 
   const handleDownload = () => {
     if (!gameRef.current) return;
@@ -271,7 +286,12 @@ export function CanvasComponent({
         selectedColor={selectedColor}
         setSelectedColor={setSelectedColor}
       />
-      {gameInitialized && <ZoomBar game={gameRef.current} />}
+      {gameInitialized && (
+        <div className="fixed bottom-4 left-4 flex gap-2">
+          <ZoomBar game={gameRef.current} />
+          <UndoRedoBar game={gameRef.current} />
+        </div>
+      )}
     </div>
   );
 }
@@ -431,7 +451,7 @@ function ZoomBar({ game }: { game: Game | null }) {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 cursor-default">
+    <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 cursor-default">
       <IconButton
         icon={<MinusIcon />}
         onClick={() => handleZoom("out")}
@@ -444,6 +464,58 @@ function ZoomBar({ game }: { game: Game | null }) {
         icon={<PlusIcon />}
         onClick={() => handleZoom("in")}
         title="Zoom In"
+      />
+    </div>
+  );
+}
+
+function UndoRedoBar({ game }: { game: Game | null }) {
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    if (game) {
+      // Initial check
+      setCanUndo(game.canUndo());
+      setCanRedo(game.canRedo());
+
+      // Set up an interval to periodically check
+      const intervalId = setInterval(() => {
+        setCanUndo(game.canUndo());
+        setCanRedo(game.canRedo());
+      }, 500);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [game]);
+
+  const handleUndo = () => {
+    if (!game || !canUndo) return;
+    game.undo();
+    setCanUndo(game.canUndo());
+    setCanRedo(game.canRedo());
+  };
+
+  const handleRedo = () => {
+    if (!game || !canRedo) return;
+    game.redo();
+    setCanUndo(game.canUndo());
+    setCanRedo(game.canRedo());
+  };
+
+  return (
+    <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 cursor-default">
+      <IconButton
+        icon={<Undo2Icon />}
+        onClick={handleUndo}
+        title="Undo (Ctrl+Z)"
+        disabled={!canUndo}
+      />
+      <IconButton
+        icon={<Redo2Icon />}
+        onClick={handleRedo}
+        title="Redo (Ctrl+Y)"
+        disabled={!canRedo}
       />
     </div>
   );
