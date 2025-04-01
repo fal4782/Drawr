@@ -15,6 +15,7 @@ type Shape =
   | {
       id?: number;
       persistent?: boolean;
+      userId?: string;
       shape: {
         type: "rectangle";
         strokeColor: string;
@@ -27,6 +28,7 @@ type Shape =
   | {
       id?: number;
       persistent?: boolean;
+      userId?: string;
       shape: {
         strokeColor: string;
         type: "circle";
@@ -38,6 +40,7 @@ type Shape =
   | {
       id?: number;
       persistent?: boolean;
+      userId?: string;
       shape: {
         strokeColor: string;
         type: "line";
@@ -50,6 +53,7 @@ type Shape =
   | {
       id?: number;
       persistent?: boolean;
+      userId?: string;
       shape: {
         strokeColor: string;
         type: "pencil";
@@ -59,6 +63,7 @@ type Shape =
   | {
       id?: number;
       persistent?: boolean;
+      userId?: string;
       shape: {
         strokeColor: string;
         type: "text";
@@ -77,6 +82,7 @@ export class Game {
   private roomId: string;
   private socket: WebSocket;
   private clicked: boolean;
+  private userId: string;
   private startX: number = 0;
   private startY: number = 0;
   private selectedTool = "pencil";
@@ -94,6 +100,7 @@ export class Game {
     canvas: HTMLCanvasElement,
     roomId: string,
     socket: WebSocket,
+    userId: string,
     zoomOnScroll: boolean = false
   ) {
     this.canvas = canvas;
@@ -101,6 +108,7 @@ export class Game {
     this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
+    this.userId = userId;
     this.clicked = false;
     this.init();
     this.initHandlers();
@@ -117,6 +125,7 @@ export class Game {
   addText(text: string, x: number, y: number) {
     const newShape: Shape = {
       id: generateId(),
+      userId: this.userId,
       persistent: false,
       shape: {
         type: "text",
@@ -298,11 +307,15 @@ export class Game {
     if (this.existingShapes.length > 0) {
       // Find the last non-persistent shape
       let index = this.existingShapes.length - 1;
-      while (index >= 0 && this.existingShapes[index].persistent === true) {
+      while (
+        index >= 0 &&
+        (this.existingShapes[index].persistent === true ||
+          this.existingShapes[index].userId !== this.userId)
+      ) {
         index--;
       }
 
-      // If we found a non-persistent shape, remove it
+      // If we found a non-persistent shape by the current user, remove it
       if (index >= 0) {
         const lastShape = this.existingShapes.splice(index, 1)[0];
         if (lastShape) {
@@ -349,7 +362,9 @@ export class Game {
   }
 
   canUndo(): boolean {
-    return this.existingShapes.some((shape) => !shape.persistent);
+    return this.existingShapes.some(
+      (shape) => !shape.persistent && shape.userId === this.userId
+    );
   }
 
   canRedo(): boolean {
@@ -498,6 +513,7 @@ export class Game {
     if (selectedTool === "rectangle") {
       newShape = {
         id: generateId(),
+        userId: this.userId,
         persistent: false,
         shape: {
           type: "rectangle",
@@ -512,6 +528,7 @@ export class Game {
       const radius = Math.sqrt(height ** 2 + width ** 2) / 2;
       newShape = {
         id: generateId(),
+        userId: this.userId,
         persistent: false,
         shape: {
           type: "circle",
@@ -524,6 +541,7 @@ export class Game {
     } else if (selectedTool === "line") {
       newShape = {
         id: generateId(),
+        userId: this.userId,
         persistent: false,
         shape: {
           type: "line",
@@ -537,6 +555,7 @@ export class Game {
     } else if (selectedTool === "pencil" && this.currentPath.length > 0) {
       newShape = {
         id: generateId(),
+        userId: this.userId,
         persistent: false,
         shape: {
           type: "pencil",
