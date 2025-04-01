@@ -95,7 +95,8 @@ export class Game {
   private lastX: number = 0;
   private lastY: number = 0;
   private undoStack: Shape[] = [];
-  private redoStack: Shape[] = [];
+  private redoStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
+  private operationsStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
   constructor(
     canvas: HTMLCanvasElement,
     roomId: string,
@@ -138,6 +139,10 @@ export class Game {
       },
     };
     this.existingShapes.push(newShape);
+    this.operationsStack.push({
+      type: "add",
+      shapes: [newShape],
+    });
     this.clearRedoStack(); // Clear redo stack when new text is added
     this.socket.send(
       JSON.stringify({
@@ -304,67 +309,96 @@ export class Game {
   }
 
   undo() {
-    if (this.existingShapes.length > 0) {
-      // Find the last non-persistent shape
-      let index = this.existingShapes.length - 1;
-      while (
-        index >= 0 &&
-        (this.existingShapes[index].persistent === true ||
-          this.existingShapes[index].userId !== this.userId)
-      ) {
-        index--;
-      }
+    if (this.operationsStack.length === 0) return;
 
-      // If we found a non-persistent shape by the current user, remove it
-      if (index >= 0) {
-        const lastShape = this.existingShapes.splice(index, 1)[0];
-        if (lastShape) {
-          this.redoStack.push(lastShape);
+    const lastOperation = this.operationsStack.pop();
+    if (!lastOperation) return;
 
-          // If it was added via socket, send delete message
-          if (lastShape.id) {
+    if (lastOperation.type === "add") {
+      // Remove the added shapes
+      lastOperation.shapes.forEach((shape) => {
+        const index = this.existingShapes.findIndex((s) => s.id === shape.id);
+        if (index >= 0) {
+          this.existingShapes.splice(index, 1);
+          // Send delete message to server
+          if (shape.id) {
             this.socket.send(
               JSON.stringify({
                 type: "delete_message",
                 roomId: Number(this.roomId),
-                messageId: lastShape.id,
+                messageId: shape.id,
               })
             );
           }
-
-          this.clearCanvas();
         }
-      }
-    }
-  }
-
-  redo() {
-    if (this.redoStack.length > 0) {
-      // Take the last undone shape and add it back
-      const shapeToRedo = this.redoStack.pop();
-      if (shapeToRedo) {
-        this.existingShapes.push(shapeToRedo);
-
-        // If it has an ID, send it back to the server
-        if (shapeToRedo.id) {
+      });
+    } else if (lastOperation.type === "delete") {
+      // Add back the deleted shapes
+      lastOperation.shapes.forEach((shape) => {
+        this.existingShapes.push(shape);
+        // Send add message to server
+        if (shape.id) {
           this.socket.send(
             JSON.stringify({
               type: "chat",
-              message: JSON.stringify(shapeToRedo),
+              message: JSON.stringify(shape),
               roomId: Number(this.roomId),
             })
           );
         }
-
-        this.clearCanvas();
-      }
+      });
     }
+    this.redoStack.push(lastOperation);
+    this.clearCanvas();
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+
+    const operationToRedo = this.redoStack.pop();
+    if (!operationToRedo) return;
+
+    if (operationToRedo.type === "add") {
+      // Re-add the shapes
+      operationToRedo.shapes.forEach((shape) => {
+        this.existingShapes.push(shape);
+        // Send add message to server
+        if (shape.id) {
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              message: JSON.stringify(shape),
+              roomId: Number(this.roomId),
+            })
+          );
+        }
+      });
+    } else if (operationToRedo.type === "delete") {
+      // Re-delete the shapes
+      operationToRedo.shapes.forEach((shape) => {
+        const index = this.existingShapes.findIndex((s) => s.id === shape.id);
+        if (index >= 0) {
+          this.existingShapes.splice(index, 1);
+          // Send delete message to server
+          if (shape.id) {
+            this.socket.send(
+              JSON.stringify({
+                type: "delete_message",
+                roomId: Number(this.roomId),
+                messageId: shape.id,
+              })
+            );
+          }
+        }
+      });
+    }
+
+    this.operationsStack.push(operationToRedo);
+    this.clearCanvas();
   }
 
   canUndo(): boolean {
-    return this.existingShapes.some(
-      (shape) => !shape.persistent && shape.userId === this.userId
-    );
+    return this.operationsStack.length > 0;
   }
 
   canRedo(): boolean {
@@ -395,7 +429,7 @@ export class Game {
       const transformedY = (e.clientY - this.offsetY) / this.scale;
       const eraserX = transformedX + eraserRadius; // Adjust the x-coordinate to center the eraser
       const eraserY = transformedY + eraserRadius; // Adjust the y-coordinate to center the eraser
-
+      const shapesToDelete: Shape[] = [];
       this.existingShapes = this.existingShapes.filter((element) => {
         let shouldKeep = true;
 
@@ -482,6 +516,7 @@ export class Game {
         }
 
         if (!shouldKeep) {
+          shapesToDelete.push(element);
           this.socket.send(
             JSON.stringify({
               type: "delete_message",
@@ -493,7 +528,14 @@ export class Game {
         return shouldKeep;
       });
 
-      this.clearRedoStack(); // Clear redo stack when shapes are erased
+      // Add the delete operation to the operations stack
+      if (shapesToDelete.length > 0) {
+        this.operationsStack.push({
+          type: "delete",
+          shapes: shapesToDelete,
+        });
+        this.clearRedoStack();
+      }
       this.clearCanvas();
       return;
     }
@@ -565,7 +607,11 @@ export class Game {
       };
       this.currentPath = []; // Reset path after creating shape
       this.existingShapes.push(newShape);
-
+      this.operationsStack.push({
+        type: "add",
+        shapes: [newShape],
+      });
+      this.clearRedoStack(); // Clear redo stack when new shape is added
       this.socket.send(
         JSON.stringify({
           type: "chat",
@@ -581,6 +627,10 @@ export class Game {
       return;
     }
     this.existingShapes.push(newShape);
+    this.operationsStack.push({
+      type: "add",
+      shapes: [newShape],
+    });
     this.clearRedoStack(); // Clear redo stack when new shape is added
 
     this.socket.send(
