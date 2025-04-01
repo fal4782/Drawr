@@ -14,6 +14,7 @@ type Tool =
 type Shape =
   | {
       id?: number;
+      persistent?: boolean;
       shape: {
         type: "rectangle";
         strokeColor: string;
@@ -25,6 +26,7 @@ type Shape =
     }
   | {
       id?: number;
+      persistent?: boolean;
       shape: {
         strokeColor: string;
         type: "circle";
@@ -35,6 +37,7 @@ type Shape =
     }
   | {
       id?: number;
+      persistent?: boolean;
       shape: {
         strokeColor: string;
         type: "line";
@@ -46,6 +49,7 @@ type Shape =
     }
   | {
       id?: number;
+      persistent?: boolean;
       shape: {
         strokeColor: string;
         type: "pencil";
@@ -54,6 +58,7 @@ type Shape =
     }
   | {
       id?: number;
+      persistent?: boolean;
       shape: {
         strokeColor: string;
         type: "text";
@@ -112,6 +117,7 @@ export class Game {
   addText(text: string, x: number, y: number) {
     const newShape: Shape = {
       id: generateId(),
+      persistent: false,
       shape: {
         type: "text",
         strokeColor: this.strokeColor,
@@ -137,7 +143,14 @@ export class Game {
   async init() {
     this.undoStack = [];
     this.redoStack = [];
-    this.existingShapes = await getExistingShapes(this.roomId);
+
+    const loadedShapes = await getExistingShapes(this.roomId);
+
+    // Add a flag to shapes loaded at initialization to mark them as persistent
+    this.existingShapes = loadedShapes.map((shape: Shape) => ({
+      ...shape,
+      persistent: true,
+    }));
     this.clearCanvas();
   }
 
@@ -149,6 +162,7 @@ export class Game {
     const message = JSON.parse(event.data);
     if (message.type === "chat") {
       const parsedShape = JSON.parse(message.message);
+      // Don't mark incoming shapes as persistent
       this.existingShapes.push(parsedShape);
       this.clearCanvas();
     }
@@ -282,23 +296,31 @@ export class Game {
 
   undo() {
     if (this.existingShapes.length > 0) {
-      // Take the last shape and move it to the redo stack
-      const lastShape = this.existingShapes.pop();
-      if (lastShape) {
-        this.redoStack.push(lastShape);
+      // Find the last non-persistent shape
+      let index = this.existingShapes.length - 1;
+      while (index >= 0 && this.existingShapes[index].persistent === true) {
+        index--;
+      }
 
-        // If it was added via socket, send delete message
-        if (lastShape.id) {
-          this.socket.send(
-            JSON.stringify({
-              type: "delete_message",
-              roomId: Number(this.roomId),
-              messageId: lastShape.id,
-            })
-          );
+      // If we found a non-persistent shape, remove it
+      if (index >= 0) {
+        const lastShape = this.existingShapes.splice(index, 1)[0];
+        if (lastShape) {
+          this.redoStack.push(lastShape);
+
+          // If it was added via socket, send delete message
+          if (lastShape.id) {
+            this.socket.send(
+              JSON.stringify({
+                type: "delete_message",
+                roomId: Number(this.roomId),
+                messageId: lastShape.id,
+              })
+            );
+          }
+
+          this.clearCanvas();
         }
-
-        this.clearCanvas();
       }
     }
   }
@@ -327,14 +349,13 @@ export class Game {
   }
 
   canUndo(): boolean {
-    return this.existingShapes.length > 0;
+    return this.existingShapes.some((shape) => !shape.persistent);
   }
 
   canRedo(): boolean {
     return this.redoStack.length > 0;
   }
 
-  // Clear redo stack when a new action is performed
   clearRedoStack() {
     this.redoStack = [];
   }
@@ -477,6 +498,7 @@ export class Game {
     if (selectedTool === "rectangle") {
       newShape = {
         id: generateId(),
+        persistent: false,
         shape: {
           type: "rectangle",
           strokeColor: this.strokeColor,
@@ -490,6 +512,7 @@ export class Game {
       const radius = Math.sqrt(height ** 2 + width ** 2) / 2;
       newShape = {
         id: generateId(),
+        persistent: false,
         shape: {
           type: "circle",
           strokeColor: this.strokeColor,
@@ -501,6 +524,7 @@ export class Game {
     } else if (selectedTool === "line") {
       newShape = {
         id: generateId(),
+        persistent: false,
         shape: {
           type: "line",
           strokeColor: this.strokeColor,
@@ -513,6 +537,7 @@ export class Game {
     } else if (selectedTool === "pencil" && this.currentPath.length > 0) {
       newShape = {
         id: generateId(),
+        persistent: false,
         shape: {
           type: "pencil",
           strokeColor: this.strokeColor,
