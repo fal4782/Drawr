@@ -132,7 +132,17 @@ export function CanvasComponent({
             document.body.style.cursor = "crosshair";
           }
         }}
-        onBlur={() => setTextInput({ ...textInput, isVisible: false })}
+        onBlur={(e) => {
+          if (e.currentTarget.value) {
+            gameRef.current?.addText(
+              e.currentTarget.value,
+              textInput.x,
+              textInput.y
+            );
+          }
+          setTextInput({ ...textInput, isVisible: false });
+          document.body.style.cursor = "crosshair";
+        }}
       />
     ) : null;
   };
