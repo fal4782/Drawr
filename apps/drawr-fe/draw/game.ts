@@ -262,13 +262,13 @@ export class Game {
   }
 
   zoomIn() {
-    this.scale *= 1.2;
+    this.scale += 0.1;
     this.scale = Math.min(this.scale, 10);
     this.clearCanvas();
   }
 
   zoomOut() {
-    this.scale *= 0.8;
+    this.scale -= 0.1;
     this.scale = Math.max(this.scale, 0.1);
     this.clearCanvas();
   }
