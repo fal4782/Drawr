@@ -39,7 +39,7 @@ export function CanvasComponent({
   const gameRef = useRef<Game | null>(null);
   const pageSize = usePageSize();
   const [selectedColor, setSelectedColor] = useState<string>("white");
-  const zoomOnScroll = false;
+  const zoomOnScroll = false; // Set to true to set zoom on scroll
   const router = useRouter();
   const [gameInitialized, setGameInitialized] = useState(false);
 
