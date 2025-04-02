@@ -31,7 +31,7 @@ type Tool =
 export function CanvasComponent({
   roomId,
   socket,
-  currentUserId
+  currentUserId,
 }: {
   roomId: string;
   socket: WebSocket;
@@ -212,6 +212,15 @@ export function CanvasComponent({
       // Handle Ctrl+H for back to dashboard
       if (e.ctrlKey && e.key === "h") {
         e.preventDefault();
+        // Send leave_room message before navigating
+        if (gameRef.current) {
+          socket.send(
+            JSON.stringify({
+              type: "leave_room",
+              roomId: Number(roomId),
+            })
+          );
+        }
         router.push("/dashboard");
         document.body.style.cursor = "default";
         return;
@@ -291,6 +300,9 @@ export function CanvasComponent({
         setSelectedTool={setSelectedTool}
         handleDownload={handleDownload}
         router={router}
+        roomId={roomId}
+        socket={socket}
+        gameRef={gameRef.current}
       />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
@@ -314,11 +326,17 @@ function Topbar({
   setSelectedTool,
   handleDownload,
   router,
+  roomId,
+  socket,
+  gameRef,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
   handleDownload: () => void;
   router: ReturnType<typeof useRouter>;
+  roomId: string;
+  socket: WebSocket;
+  gameRef: Game | null;
 }) {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300 cursor-default">
@@ -395,6 +413,15 @@ function Topbar({
       <IconButton
         icon={<HouseIcon />}
         onClick={() => {
+          // Send leave_room message before navigating
+          if (gameRef) {
+            socket.send(
+              JSON.stringify({
+                type: "leave_room",
+                roomId: Number(roomId),
+              })
+            );
+          }
           router.push("/dashboard");
           document.body.style.cursor = "default";
         }}
