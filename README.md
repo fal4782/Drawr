@@ -15,6 +15,7 @@ Drawr is a web-based canvas application that enables users to draw shapes togeth
 - **Undo & Redo**: Easily correct mistakes with undo and redo functionality
 - **Export Canvas**: Save the canvas view as PNG images
 - **User Authentication**: Secure access with Google authentication
+- **Online Users**: See who is currently active in your drawing room with real-time user presence indicators
 
 ## Technical Stack
 
@@ -96,6 +97,7 @@ Drawr is a web-based canvas application that enables users to draw shapes togeth
 4. Collaborate in real-time with other users in the same room
 5. Pan around the canvas by dragging with the mouse
 6. Zoom in and out using the scroll wheel (if enabled), otherwise use the zoom buttons
+7. View currently active users in the room through the avatar indicators in the bottom-right corner
 
 ## Contributing
 
