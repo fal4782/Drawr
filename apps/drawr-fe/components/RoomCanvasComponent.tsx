@@ -34,7 +34,8 @@ export function RoomCanvasComponent({
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "room_users") {
-        setRoomUsers(data.users);
+        const uniqueUsers = [...new Set((data.users as string[]).filter(Boolean))];
+        setRoomUsers(uniqueUsers);
       }
     };
 
@@ -65,8 +66,8 @@ export function RoomCanvasComponent({
   return (
     <div className="relative">
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-10">
-        {roomUsers.map((username) => (
-          <div key={username} className="group relative">
+        {roomUsers.map((username, index) => (
+          <div key={`${username}-${index}`} className="group relative">
             <UserAvatar name={username} size="sm" />
           </div>
         ))}
