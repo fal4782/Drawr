@@ -9,11 +9,9 @@ import { WSLoader } from "./WSLoader";
 export function RoomCanvasComponent({
   roomId,
   token,
-  currentUserId,
 }: {
   roomId: string;
   token: string;
-  currentUserId: string;
 }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const wsUrl = `${WS_BACKEND}?token=${token}`;
@@ -34,7 +32,9 @@ export function RoomCanvasComponent({
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "room_users") {
-        const uniqueUsers = [...new Set((data.users as string[]).filter(Boolean))];
+        const uniqueUsers = [
+          ...new Set((data.users as string[]).filter(Boolean)),
+        ];
         setRoomUsers(uniqueUsers);
       }
     };
@@ -72,11 +72,7 @@ export function RoomCanvasComponent({
           </div>
         ))}
       </div>
-      <CanvasComponent
-        roomId={roomId}
-        socket={socket}
-        currentUserId={currentUserId}
-      />
+      <CanvasComponent roomId={roomId} socket={socket} />
     </div>
   );
 }

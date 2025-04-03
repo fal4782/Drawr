@@ -31,11 +31,9 @@ type Tool =
 export function CanvasComponent({
   roomId,
   socket,
-  currentUserId,
 }: {
   roomId: string;
   socket: WebSocket;
-  currentUserId: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -164,7 +162,6 @@ export function CanvasComponent({
         canvasRef.current,
         roomId,
         socket,
-        currentUserId,
         zoomOnScroll
       );
       // Set the initialized state to true
@@ -173,7 +170,7 @@ export function CanvasComponent({
     return () => {
       gameRef.current?.destroy();
     };
-  }, [roomId, socket, zoomOnScroll, currentUserId]);
+  }, [roomId, socket, zoomOnScroll]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -41,11 +41,5 @@ export default async function Canvas({ params }: PageProps) {
   }
   const slug = (await params).slug;
   const roomId = await getRoom(slug, session?.accessToken);
-  return (
-    <RoomCanvasComponent
-      token={session?.accessToken}
-      roomId={roomId}
-      currentUserId={session?.userId}
-    />
-  );
+  return <RoomCanvasComponent token={session?.accessToken} roomId={roomId} />;
 }

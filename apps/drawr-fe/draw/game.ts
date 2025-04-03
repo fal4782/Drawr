@@ -14,8 +14,6 @@ type Tool =
 type Shape =
   | {
       id?: number;
-      persistent?: boolean;
-      userId?: string;
       shape: {
         type: "rectangle";
         strokeColor: string;
@@ -27,8 +25,6 @@ type Shape =
     }
   | {
       id?: number;
-      persistent?: boolean;
-      userId?: string;
       shape: {
         strokeColor: string;
         type: "circle";
@@ -39,8 +35,6 @@ type Shape =
     }
   | {
       id?: number;
-      persistent?: boolean;
-      userId?: string;
       shape: {
         strokeColor: string;
         type: "line";
@@ -52,8 +46,6 @@ type Shape =
     }
   | {
       id?: number;
-      persistent?: boolean;
-      userId?: string;
       shape: {
         strokeColor: string;
         type: "pencil";
@@ -62,8 +54,6 @@ type Shape =
     }
   | {
       id?: number;
-      persistent?: boolean;
-      userId?: string;
       shape: {
         strokeColor: string;
         type: "text";
@@ -82,7 +72,6 @@ export class Game {
   private roomId: string;
   private socket: WebSocket;
   private clicked: boolean;
-  private userId: string;
   private startX: number = 0;
   private startY: number = 0;
   private selectedTool = "pencil";
@@ -94,14 +83,12 @@ export class Game {
   private isDragging: boolean = false;
   private lastX: number = 0;
   private lastY: number = 0;
-  private undoStack: Shape[] = [];
   private redoStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
   private operationsStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
   constructor(
     canvas: HTMLCanvasElement,
     roomId: string,
     socket: WebSocket,
-    userId: string,
     zoomOnScroll: boolean = false
   ) {
     this.canvas = canvas;
@@ -109,7 +96,6 @@ export class Game {
     this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
-    this.userId = userId;
     this.clicked = false;
     this.init();
     this.initHandlers();
@@ -126,8 +112,6 @@ export class Game {
   addText(text: string, x: number, y: number) {
     const newShape: Shape = {
       id: generateId(),
-      userId: this.userId,
-      persistent: false,
       shape: {
         type: "text",
         strokeColor: this.strokeColor,
@@ -143,6 +127,8 @@ export class Game {
       type: "add",
       shapes: [newShape],
     });
+    console.log("operation stack", this.operationsStack);
+
     this.clearRedoStack(); // Clear redo stack when new text is added
     this.socket.send(
       JSON.stringify({
@@ -155,16 +141,7 @@ export class Game {
   }
 
   async init() {
-    this.undoStack = [];
-    this.redoStack = [];
-
-    const loadedShapes = await getExistingShapes(this.roomId);
-
-    // Add a flag to shapes loaded at initialization to mark them as persistent
-    this.existingShapes = loadedShapes.map((shape: Shape) => ({
-      ...shape,
-      persistent: true,
-    }));
+    this.existingShapes = await getExistingShapes(this.roomId);
     this.clearCanvas();
   }
 
@@ -176,7 +153,6 @@ export class Game {
     const message = JSON.parse(event.data);
     if (message.type === "chat") {
       const parsedShape = JSON.parse(message.message);
-      // Don't mark incoming shapes as persistent
       this.existingShapes.push(parsedShape);
       this.clearCanvas();
     }
@@ -317,6 +293,8 @@ export class Game {
     if (lastOperation.type === "add") {
       // Remove the added shapes
       lastOperation.shapes.forEach((shape) => {
+        console.log("shape on undo", shape);
+
         const index = this.existingShapes.findIndex((s) => s.id === shape.id);
         if (index >= 0) {
           this.existingShapes.splice(index, 1);
@@ -394,6 +372,8 @@ export class Game {
     }
 
     this.operationsStack.push(operationToRedo);
+    console.log("operation stack on redo", this.operationsStack);
+
     this.clearCanvas();
   }
 
@@ -534,6 +514,8 @@ export class Game {
           type: "delete",
           shapes: shapesToDelete,
         });
+        console.log("operation stack", this.operationsStack);
+
         this.clearRedoStack();
       }
       this.clearCanvas();
@@ -555,8 +537,6 @@ export class Game {
     if (selectedTool === "rectangle") {
       newShape = {
         id: generateId(),
-        userId: this.userId,
-        persistent: false,
         shape: {
           type: "rectangle",
           strokeColor: this.strokeColor,
@@ -570,8 +550,6 @@ export class Game {
       const radius = Math.sqrt(height ** 2 + width ** 2) / 2;
       newShape = {
         id: generateId(),
-        userId: this.userId,
-        persistent: false,
         shape: {
           type: "circle",
           strokeColor: this.strokeColor,
@@ -583,8 +561,6 @@ export class Game {
     } else if (selectedTool === "line") {
       newShape = {
         id: generateId(),
-        userId: this.userId,
-        persistent: false,
         shape: {
           type: "line",
           strokeColor: this.strokeColor,
@@ -597,8 +573,6 @@ export class Game {
     } else if (selectedTool === "pencil" && this.currentPath.length > 0) {
       newShape = {
         id: generateId(),
-        userId: this.userId,
-        persistent: false,
         shape: {
           type: "pencil",
           strokeColor: this.strokeColor,
@@ -611,6 +585,7 @@ export class Game {
         type: "add",
         shapes: [newShape],
       });
+      console.log("operation stack after mouse pencil", this.operationsStack);
       this.clearRedoStack(); // Clear redo stack when new shape is added
       this.socket.send(
         JSON.stringify({
@@ -631,6 +606,8 @@ export class Game {
       type: "add",
       shapes: [newShape],
     });
+    console.log("operation stack on mouse up", this.operationsStack);
+
     this.clearRedoStack(); // Clear redo stack when new shape is added
 
     this.socket.send(
