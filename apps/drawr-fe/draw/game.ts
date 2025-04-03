@@ -263,9 +263,6 @@ export class Game {
     this.clearCanvas();
   }
   exportAsPNG(): string {
-    this.ctx.save(); // Save current transformation state
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transformations to render the full canvas
-
     // Create a temporary canvas with the same dimensions
     const tempCanvas = document.createElement("canvas");
     const tempCtx = tempCanvas.getContext("2d")!;
@@ -278,8 +275,6 @@ export class Game {
     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
     tempCtx.drawImage(this.canvas, 0, 0); // Draw the current canvas content onto the temp canvas
-
-    this.ctx.restore(); // Restore the original transformation
 
     return tempCanvas.toDataURL("image/png");
   }
