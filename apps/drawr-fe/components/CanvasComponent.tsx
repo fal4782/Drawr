@@ -10,10 +10,10 @@ import {
   HandIcon,
   MinusIcon,
   PlusIcon,
-  HouseIcon,
   FullscreenIcon,
   Undo2Icon,
   Redo2Icon,
+  ArrowLeftIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -296,13 +296,31 @@ export function CanvasComponent({
         selectedTool={selectedTool}
         setSelectedTool={setSelectedTool}
         handleDownload={handleDownload}
-        router={router}
-        roomId={roomId}
-        socket={socket}
-        gameRef={gameRef.current}
       />
       <div className="fixed top-[5.5rem] left-1/2 -translate-x-1/2 text-white/50 text-sm">
         {toolDescriptions[selectedTool]}
+      </div>
+      {/* Dashboard Navigation */}
+      <div className="fixed top-4 left-4 z-10">
+        <div className="bg-white/5 backdrop-blur-md rounded-xl border border-white/20 transition-all duration-300 hover:bg-white/10">
+          <IconButton
+            icon={<ArrowLeftIcon size={20} />}
+            onClick={() => {
+              // Send leave_room message before navigating
+              if (gameRef) {
+                socket.send(
+                  JSON.stringify({
+                    type: "leave_room",
+                    roomId: Number(roomId),
+                  })
+                );
+              }
+              router.push("/dashboard");
+              document.body.style.cursor = "default";
+            }}
+            title="Back to Dashboard — Ctrl+H"
+          />
+        </div>
       </div>
       <ColorBar
         selectedColor={selectedColor}
@@ -322,18 +340,10 @@ function Topbar({
   selectedTool,
   setSelectedTool,
   handleDownload,
-  router,
-  roomId,
-  socket,
-  gameRef,
 }: {
   selectedTool: Tool;
   setSelectedTool: (shape: Tool) => void;
   handleDownload: () => void;
-  router: ReturnType<typeof useRouter>;
-  roomId: string;
-  socket: WebSocket;
-  gameRef: Game | null;
 }) {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 transition-all duration-300 cursor-default">
@@ -406,24 +416,6 @@ function Topbar({
         onClick={handleDownload}
         keybind="^S"
         title="Save current view as PNG — Ctrl+S"
-      />
-      <IconButton
-        icon={<HouseIcon />}
-        onClick={() => {
-          // Send leave_room message before navigating
-          if (gameRef) {
-            socket.send(
-              JSON.stringify({
-                type: "leave_room",
-                roomId: Number(roomId),
-              })
-            );
-          }
-          router.push("/dashboard");
-          document.body.style.cursor = "default";
-        }}
-        keybind="^H"
-        title="Back to Dashboard — Ctrl+H"
       />
     </div>
   );
