@@ -127,7 +127,6 @@ export class Game {
       type: "add",
       shapes: [newShape],
     });
-    console.log("operation stack", this.operationsStack);
 
     this.clearRedoStack(); // Clear redo stack when new text is added
     this.socket.send(
@@ -288,7 +287,6 @@ export class Game {
     if (lastOperation.type === "add") {
       // Remove the added shapes
       lastOperation.shapes.forEach((shape) => {
-        console.log("shape on undo", shape);
 
         const index = this.existingShapes.findIndex((s) => s.id === shape.id);
         if (index >= 0) {
@@ -367,7 +365,6 @@ export class Game {
     }
 
     this.operationsStack.push(operationToRedo);
-    console.log("operation stack on redo", this.operationsStack);
 
     this.clearCanvas();
   }
@@ -509,7 +506,6 @@ export class Game {
           type: "delete",
           shapes: shapesToDelete,
         });
-        console.log("operation stack", this.operationsStack);
 
         this.clearRedoStack();
       }
@@ -580,7 +576,6 @@ export class Game {
         type: "add",
         shapes: [newShape],
       });
-      console.log("operation stack after mouse pencil", this.operationsStack);
       this.clearRedoStack(); // Clear redo stack when new shape is added
       this.socket.send(
         JSON.stringify({
@@ -601,7 +596,6 @@ export class Game {
       type: "add",
       shapes: [newShape],
     });
-    console.log("operation stack on mouse up", this.operationsStack);
 
     this.clearRedoStack(); // Clear redo stack when new shape is added
 

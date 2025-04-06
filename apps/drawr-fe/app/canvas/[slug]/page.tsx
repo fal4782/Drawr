@@ -34,7 +34,6 @@ type PageProps = {
 };
 export default async function Canvas({ params }: PageProps) {
   const session = await getServerSession(authOptions);
-  console.log("session", session);
 
   if (!session?.accessToken) {
     redirect("/signin");
