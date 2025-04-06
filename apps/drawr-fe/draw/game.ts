@@ -287,7 +287,6 @@ export class Game {
     if (lastOperation.type === "add") {
       // Remove the added shapes
       lastOperation.shapes.forEach((shape) => {
-
         const index = this.existingShapes.findIndex((s) => s.id === shape.id);
         if (index >= 0) {
           this.existingShapes.splice(index, 1);
@@ -382,19 +381,29 @@ export class Game {
   }
 
   mouseDownHandler = (e: MouseEvent) => {
+    // Only proceed with left click (button 0) for most tools
+    // or middle click (button 1) for panning
+    if (e.button !== 0 && e.button !== 1 && this.selectedTool !== "pan") {
+      return;
+    }
+
+    // For middle mouse button (wheel),disable panning only on right click
+    const isPanning =
+      (e.button !== 2 && this.selectedTool === "pan") || e.button === 1;
     this.clicked = true;
-    // this.startX = e.clientX;
-    // this.startY = e.clientY;
     this.startX = (e.clientX - this.offsetX) / this.scale;
     this.startY = (e.clientY - this.offsetY) / this.scale;
 
-    if (this.selectedTool === "pan") {
+    if (isPanning) {
+      console.log("Middle mouse button clicked and panning now");
+
       this.isDragging = true;
       document.body.style.cursor = "grabbing";
       this.lastX = e.clientX;
       this.lastY = e.clientY;
       return;
     }
+
     if (this.selectedTool === "eraser") {
       const eraserRadius = 8;
       const transformedX = (e.clientX - this.offsetX) / this.scale;
@@ -514,8 +523,27 @@ export class Game {
     }
   };
   mouseUpHandler = (e: MouseEvent) => {
+    // Only handle left or middle mouse button releases
+    if (e.button !== 0 && e.button !== 1) {
+      return;
+    }
     this.isDragging = false;
     this.clicked = false;
+
+    // If it was a middle mouse button (wheel) for panning, just reset cursor
+    if (e.button === 1) {
+      // Reset cursor based on the currently selected tool
+      if (this.selectedTool === "text") {
+        document.body.style.cursor = "text";
+      } else if (this.selectedTool === "eraser") {
+        document.body.style.cursor = "url('/circle.png'), auto";
+      } else if (this.selectedTool === "pan") {
+        document.body.style.cursor = "grab";
+      } else {
+        document.body.style.cursor = "crosshair";
+      }
+      return;
+    }
 
     const transformedX = (e.clientX - this.offsetX) / this.scale;
     const transformedY = (e.clientY - this.offsetY) / this.scale;
@@ -667,17 +695,14 @@ export class Game {
 
   initMouseHandlers() {
     this.canvas.addEventListener("mousedown", this.mouseDownHandler);
-
     this.canvas.addEventListener("mouseup", this.mouseUpHandler);
-
     this.canvas.addEventListener("mousemove", this.mouseMoveHandler);
+    this.canvas.addEventListener("contextmenu", (e) => e.preventDefault()); // Prevent right-click context menu
   }
 
   destroy() {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
-
     this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
-
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
     this.socket.removeEventListener("message", this.messageHandler);
   }
