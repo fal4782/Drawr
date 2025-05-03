@@ -5,18 +5,32 @@ import { useEffect, useState } from "react";
 import { CanvasComponent } from "./CanvasComponent";
 import { UserAvatar } from "./AvatarComponent";
 import { WSLoader } from "./WSLoader";
+import { getOrCreateGuestUser, GuestUser } from "@/utils/guestUser";
 
 export function RoomCanvasComponent({
   roomId,
   token,
+  isGuestMode = false,
 }: {
   roomId: string;
-  token: string;
+  token?: string;
+  isGuestMode?: boolean;
 }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const wsUrl = `${WS_BACKEND}?token=${token}`;
   const [roomUsers, setRoomUsers] = useState<string[]>([]);
+  const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
+
   useEffect(() => {
+    if (isGuestMode) {
+      // For guest mode, we don't need a real WebSocket connection
+      const user = getOrCreateGuestUser();
+      setGuestUser(user);
+      setRoomUsers([user.username]);
+      return;
+    }
+
+    if (!token) return;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -57,9 +71,9 @@ export function RoomCanvasComponent({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       ws.close();
     };
-  }, [roomId, wsUrl]);
+  }, [roomId, wsUrl, isGuestMode]);
 
-  if (!socket) {
+  if (!socket && !isGuestMode) {
     return <WSLoader />;
   }
 
@@ -72,7 +86,12 @@ export function RoomCanvasComponent({
           </div>
         ))}
       </div>
-      <CanvasComponent roomId={roomId} socket={socket} />
+      <CanvasComponent
+        roomId={roomId}
+        socket={socket}
+        isGuestMode={isGuestMode}
+        guestUser={isGuestMode ? guestUser : null}
+      />
     </div>
   );
 }

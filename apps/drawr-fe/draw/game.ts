@@ -70,7 +70,7 @@ export class Game {
   private ctx: CanvasRenderingContext2D;
   private existingShapes: Shape[];
   private roomId: string;
-  private socket: WebSocket;
+  private socket: WebSocket | null;
   private clicked: boolean;
   private startX: number = 0;
   private startY: number = 0;
@@ -85,11 +85,13 @@ export class Game {
   private lastY: number = 0;
   private redoStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
   private operationsStack: { type: "add" | "delete"; shapes: Shape[] }[] = [];
+  private guestMode: boolean = false;
   constructor(
     canvas: HTMLCanvasElement,
     roomId: string,
-    socket: WebSocket,
-    zoomOnScroll: boolean = false
+    socket: WebSocket | null,
+    zoomOnScroll: boolean = false,
+    guestMode: boolean = false
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -97,6 +99,7 @@ export class Game {
     this.roomId = roomId;
     this.socket = socket;
     this.clicked = false;
+    this.guestMode = guestMode;
     this.init();
     this.initHandlers();
     if (zoomOnScroll) {
@@ -129,26 +132,46 @@ export class Game {
     });
 
     this.clearRedoStack(); // Clear redo stack when new text is added
-    this.socket.send(
-      JSON.stringify({
-        type: "chat",
-        message: JSON.stringify(newShape),
-        roomId: Number(this.roomId),
-      })
-    );
+    if (!this.guestMode && this.socket) {
+      // Only send to server if not in guest mode
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          message: JSON.stringify(newShape),
+          roomId: Number(this.roomId),
+        })
+      );
+    } else if (this.guestMode) {
+      this.saveGuestCanvasData(); // Save to localStorage in guest mode
+    }
     this.clearCanvas();
   }
 
   async init() {
-    this.existingShapes = await getExistingShapes(this.roomId);
+    if (!this.guestMode) {
+      this.existingShapes = await getExistingShapes(this.roomId);
+    } else {
+      const savedData = localStorage.getItem("guestCanvasData");
+      if (savedData) {
+        try {
+          this.existingShapes = JSON.parse(savedData);
+        } catch (e) {
+          console.error("Failed to parse saved guest canvas data", e);
+          this.existingShapes = [];
+        }
+      }
+    }
     this.clearCanvas();
   }
 
   initHandlers() {
-    this.socket.addEventListener("message", this.messageHandler);
+    if (!this.guestMode && this.socket) {
+      this.socket.addEventListener("message", this.messageHandler);
+    }
   }
 
   messageHandler = (event: MessageEvent) => {
+    if (this.guestMode) return; // Skip in guest mode
     const message = JSON.parse(event.data);
     if (message.type === "chat") {
       const parsedShape = JSON.parse(message.message);
@@ -292,7 +315,7 @@ export class Game {
           this.existingShapes.splice(index, 1);
           // Send delete message to server
           if (shape.id) {
-            this.socket.send(
+            this.socket?.send(
               JSON.stringify({
                 type: "delete_message",
                 roomId: Number(this.roomId),
@@ -307,7 +330,8 @@ export class Game {
       lastOperation.shapes.forEach((shape) => {
         this.existingShapes.push(shape);
         // Send add message to server
-        if (shape.id) {
+        if (shape.id && !this.guestMode && this.socket) {
+          // Only send to server if not in guest mode
           this.socket.send(
             JSON.stringify({
               type: "chat",
@@ -315,10 +339,15 @@ export class Game {
               roomId: Number(this.roomId),
             })
           );
+        } else if (this.guestMode) {
+          this.saveGuestCanvasData(); // Save to localStorage in guest mode
         }
       });
     }
     this.redoStack.push(lastOperation);
+    if (this.guestMode) {
+      this.saveGuestCanvasData();
+    }
     this.clearCanvas();
   }
 
@@ -333,7 +362,8 @@ export class Game {
       operationToRedo.shapes.forEach((shape) => {
         this.existingShapes.push(shape);
         // Send add message to server
-        if (shape.id) {
+        if (shape.id && !this.guestMode && this.socket) {
+          // Only send to server if not in guest mode
           this.socket.send(
             JSON.stringify({
               type: "chat",
@@ -341,6 +371,8 @@ export class Game {
               roomId: Number(this.roomId),
             })
           );
+        } else if (this.guestMode) {
+          this.saveGuestCanvasData(); // Save to localStorage in guest mode
         }
       });
     } else if (operationToRedo.type === "delete") {
@@ -350,7 +382,7 @@ export class Game {
         if (index >= 0) {
           this.existingShapes.splice(index, 1);
           // Send delete message to server
-          if (shape.id) {
+          if (shape.id && !this.guestMode && this.socket) {
             this.socket.send(
               JSON.stringify({
                 type: "delete_message",
@@ -365,6 +397,10 @@ export class Game {
 
     this.operationsStack.push(operationToRedo);
 
+    if (this.guestMode) {
+      this.saveGuestCanvasData();
+    }
+
     this.clearCanvas();
   }
 
@@ -378,6 +414,15 @@ export class Game {
 
   clearRedoStack() {
     this.redoStack = [];
+  }
+
+  saveGuestCanvasData() {
+    if (this.guestMode) {
+      localStorage.setItem(
+        "guestCanvasData",
+        JSON.stringify(this.existingShapes)
+      );
+    }
   }
 
   mouseDownHandler = (e: MouseEvent) => {
@@ -498,13 +543,15 @@ export class Game {
 
         if (!shouldKeep) {
           shapesToDelete.push(element);
-          this.socket.send(
-            JSON.stringify({
-              type: "delete_message",
-              roomId: Number(this.roomId),
-              messageId: element.id,
-            })
-          );
+          if (!this.guestMode && this.socket) {
+            this.socket.send(
+              JSON.stringify({
+                type: "delete_message",
+                roomId: Number(this.roomId),
+                messageId: element.id,
+              })
+            );
+          }
         }
         return shouldKeep;
       });
@@ -517,6 +564,10 @@ export class Game {
         });
 
         this.clearRedoStack();
+
+        if (this.guestMode) {
+          this.saveGuestCanvasData();
+        }
       }
       this.clearCanvas();
       return;
@@ -605,13 +656,18 @@ export class Game {
         shapes: [newShape],
       });
       this.clearRedoStack(); // Clear redo stack when new shape is added
-      this.socket.send(
-        JSON.stringify({
-          type: "chat",
-          message: JSON.stringify(newShape),
-          roomId: Number(this.roomId),
-        })
-      );
+      if (!this.guestMode && this.socket) {
+        // Only send to server if not in guest mode
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            message: JSON.stringify(newShape),
+            roomId: Number(this.roomId),
+          })
+        );
+      } else if (this.guestMode) {
+        this.saveGuestCanvasData(); // Save to localStorage in guest mode
+      }
       return; // Exit early for pencil tool
     } else if (selectedTool === "pan") {
       document.body.style.cursor = "grab";
@@ -625,15 +681,20 @@ export class Game {
       shapes: [newShape],
     });
 
-    this.clearRedoStack(); // Clear redo stack when new shape is added
+    this.clearRedoStack();
 
-    this.socket.send(
-      JSON.stringify({
-        type: "chat",
-        message: JSON.stringify(newShape),
-        roomId: Number(this.roomId),
-      })
-    );
+    if (!this.guestMode && this.socket) {
+      // Only send to server if not in guest mode
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          message: JSON.stringify(newShape),
+          roomId: Number(this.roomId),
+        })
+      );
+    } else if (this.guestMode) {
+      this.saveGuestCanvasData(); // Save to localStorage in guest mode
+    }
 
     this.clearCanvas();
   };
@@ -704,6 +765,10 @@ export class Game {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
     this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
-    this.socket.removeEventListener("message", this.messageHandler);
+    this.socket?.removeEventListener("message", this.messageHandler);
+    // Save guest data when destroying
+    if (this.guestMode) {
+      this.saveGuestCanvasData();
+    }
   }
 }

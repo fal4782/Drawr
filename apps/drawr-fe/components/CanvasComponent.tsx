@@ -18,6 +18,7 @@ import {
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
 import { useRouter } from "next/navigation";
+import { GuestUser } from "@/utils/guestUser";
 
 type Tool =
   | "circle"
@@ -31,9 +32,13 @@ type Tool =
 export function CanvasComponent({
   roomId,
   socket,
+  isGuestMode = false,
+  guestUser = null,
 }: {
   roomId: string;
-  socket: WebSocket;
+  socket: WebSocket | null;
+  isGuestMode?: boolean;
+  guestUser?: GuestUser | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -42,6 +47,8 @@ export function CanvasComponent({
   const zoomOnScroll = false; // Set to true to set zoom on scroll
   const router = useRouter();
   const [gameInitialized, setGameInitialized] = useState(false);
+  // Add a state for showing the sign-up prompt
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
 
   useEffect(() => {
     gameRef.current?.setStrokeColor(selectedColor);
@@ -162,7 +169,8 @@ export function CanvasComponent({
         canvasRef.current,
         roomId,
         socket,
-        zoomOnScroll
+        zoomOnScroll,
+        isGuestMode
       );
       // Set the initialized state to true
       setGameInitialized(true);
@@ -170,7 +178,68 @@ export function CanvasComponent({
     return () => {
       gameRef.current?.destroy();
     };
-  }, [roomId, socket, zoomOnScroll]);
+  }, [roomId, socket, zoomOnScroll, isGuestMode]);
+
+  // Add a guest mode banner component
+  const GuestModeBanner = () => {
+    if (!isGuestMode) return null;
+
+    return (
+      <div className="fixed top-16 left-1/2 -translate-x-1/2 z-10 bg-white/5 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20">
+        <div className="text-white text-center flex items-center gap-2">
+          <span>
+            Drawing as <strong>{guestUser?.username || "Guest"}</strong> (Guest
+            Mode)
+          </span>
+          <button
+            className="ml-4 px-3 py-1 bg-white text-black text-sm rounded-md hover:bg-gray-200 transition-colors"
+            onClick={() => setShowSignupPrompt(true)}
+          >
+            Create Account
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Add a signup prompt modal
+  const SignupPrompt = () => {
+    if (!showSignupPrompt) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-gray-900 p-6 rounded-xl max-w-md w-full border border-white/20">
+          <h2 className="text-xl font-bold text-white mb-4">
+            Create an account to share
+          </h2>
+          <p className="text-white/70 mb-6">
+            To share your drawing with others or save it to your account, you
+            will need to sign up. Your drawing will be preserved.
+          </p>
+          <div className="flex gap-4">
+            <a
+              href="/signup?from=guest"
+              className="bg-white text-black px-4 py-2 rounded-lg font-medium flex-1 hover:bg-gray-200 transition-all text-center"
+            >
+              Sign Up
+            </a>
+            <a
+              href="/signin?from=guest"
+              className="bg-transparent border border-white/20 text-white px-4 py-2 rounded-lg flex-1 hover:bg-white/10 transition-all text-center"
+            >
+              Sign In
+            </a>
+            <button
+              className="bg-transparent border border-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/10 transition-all"
+              onClick={() => setShowSignupPrompt(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -211,7 +280,7 @@ export function CanvasComponent({
         e.preventDefault();
         // Send leave_room message before navigating
         if (gameRef.current) {
-          socket.send(
+          socket?.send(
             JSON.stringify({
               type: "leave_room",
               roomId: Number(roomId),
@@ -292,6 +361,8 @@ export function CanvasComponent({
         }}
       ></canvas>
       <FloatingTextInput />
+      {isGuestMode && <GuestModeBanner />}
+      {isGuestMode && <SignupPrompt />}
       <Topbar
         selectedTool={selectedTool}
         setSelectedTool={setSelectedTool}
@@ -308,7 +379,7 @@ export function CanvasComponent({
             onClick={() => {
               // Send leave_room message before navigating
               if (gameRef) {
-                socket.send(
+                socket?.send(
                   JSON.stringify({
                     type: "leave_room",
                     roomId: Number(roomId),
