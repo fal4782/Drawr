@@ -16,12 +16,8 @@ export default function GuestCanvas() {
     // Generate a unique room ID for this guest session
     const guestRoomId = `guest-${guestUser.id}`;
 
-    console.log("Guest user:", guestUser);
-
     // Redirect to the canvas page with guest mode enabled
-
     router.push(`/canvas/${guestRoomId}?guest=true`);
-    console.log("Redirecting to canvas page with guest mode enabled...");
   }, [router]);
 
   return (

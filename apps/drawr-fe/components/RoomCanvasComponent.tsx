@@ -1,11 +1,18 @@
 "use client";
 
-import { WS_BACKEND } from "@/config";
+import { WS_BACKEND, HTTP_BACKEND } from "@/config";
 import { useEffect, useState } from "react";
 import { CanvasComponent } from "./CanvasComponent";
 import { UserAvatar } from "./AvatarComponent";
 import { WSLoader } from "./WSLoader";
-import { getOrCreateGuestUser, GuestUser } from "@/utils/guestUser";
+import {
+  getOrCreateGuestUser,
+  GuestUser,
+  exportDrawingsFromLocalStorage,
+  clearAllGuestData,
+} from "@/utils/guestUser";
+import axios from "axios";
+import { useSearchParams } from "next/navigation";
 
 export function RoomCanvasComponent({
   roomId,
@@ -20,6 +27,60 @@ export function RoomCanvasComponent({
   const wsUrl = `${WS_BACKEND}?token=${token}`;
   const [roomUsers, setRoomUsers] = useState<string[]>([]);
   const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
+  const searchParams = useSearchParams();
+  const shouldConvert = searchParams?.get("convert") === "true";
+  const [isImporting, setIsImporting] = useState(shouldConvert);
+
+  console.log("Component rendering with states:", {
+    roomId,
+    token: !!token,
+    isGuestMode,
+    shouldConvert,
+    isImporting,
+    hasSocket: !!socket,
+  });
+
+  // Handle drawing import if needed
+  useEffect(() => {
+    const importDrawings = async () => {
+      if (!token || !shouldConvert) {
+        setIsImporting(false);
+        return;
+      }
+
+      try {
+        // Get drawings from local storage
+        const drawings = exportDrawingsFromLocalStorage();
+
+        if (drawings && drawings.length > 0) {
+          // Import drawings to the room
+          await axios.post(
+            `${HTTP_BACKEND}/import-guest-drawings`,
+            {
+              roomId,
+              drawings,
+            },
+            { headers: { Authorization: token } }
+          );
+
+          // Clear guest data after successful import
+          clearAllGuestData();
+        } else {
+          console.log("No drawings to import");
+        }
+
+        setIsImporting(false);
+      } catch (error) {
+        console.error("Error importing guest drawings:", error);
+        setIsImporting(false);
+      }
+    };
+
+    // Only run the import once when the component mounts
+    if (isImporting) {
+      importDrawings();
+    }
+  }, [token, roomId, shouldConvert, isImporting]);
 
   useEffect(() => {
     if (isGuestMode) {
@@ -31,6 +92,8 @@ export function RoomCanvasComponent({
     }
 
     if (!token) return;
+
+    console.log("Initializing WebSocket connection");
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -53,6 +116,10 @@ export function RoomCanvasComponent({
       }
     };
 
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
     // Listen for beforeunload event
     const handleBeforeUnload = () => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -71,7 +138,11 @@ export function RoomCanvasComponent({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       ws.close();
     };
-  }, [roomId, wsUrl, isGuestMode]);
+  }, [roomId, wsUrl, isGuestMode, token]);
+
+  if (isImporting) {
+    return <WSLoader message="Importing your drawings..." />;
+  }
 
   if (!socket && !isGuestMode) {
     return <WSLoader />;

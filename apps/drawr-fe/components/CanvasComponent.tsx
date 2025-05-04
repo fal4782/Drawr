@@ -339,6 +339,7 @@ export function CanvasComponent({
     document.body.removeChild(link);
   };
 
+  
   return (
     <div className="overflow-hidden h-screen">
       <canvas

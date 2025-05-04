@@ -11,7 +11,7 @@ type Tool =
   | "text"
   | "pan";
 
-type Shape =
+export type Shape =
   | {
       id?: number;
       shape: {
