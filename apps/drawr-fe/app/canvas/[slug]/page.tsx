@@ -54,7 +54,6 @@ type PageProps = {
 };
 
 export default async function Canvas({ params, searchParams }: PageProps) {
-  // Await params and searchParams before using them
   const slug = (await params).slug;
   const isGuestMode = (await searchParams)?.guest === "true";
   const shouldConvert = (await searchParams)?.convert === "true";
@@ -63,18 +62,15 @@ export default async function Canvas({ params, searchParams }: PageProps) {
 
   // If not guest mode and not authenticated, redirect to signin
   if (!isGuestMode && !session?.accessToken) {
-    redirect("/signin");
+    redirect("/");
   }
 
   const isGuestRoom = slug.startsWith("guest-");
 
-  // If it's a guest room and the user is authenticated, and either:
-  // 1. We have the convert parameter, or
-  // 2. The user is not in guest mode (meaning they're trying to access a guest room as an authenticated user)
+  // If it's a guest room and the user is authenticated
   if (isGuestRoom && session?.accessToken && (shouldConvert || !isGuestMode)) {
     const guestId = slug.replace("guest-", "");
 
-    // If we have the convert parameter or we're not in guest mode, always convert first
     try {
       // Convert the guest room
       await axios.post(
@@ -105,8 +101,7 @@ export default async function Canvas({ params, searchParams }: PageProps) {
   }
 
   if (!session?.accessToken) {
-    // This should never happen due to the earlier check, but TypeScript doesn't know that
-    redirect("/signin");
+    redirect("/");
   }
 
   try {
