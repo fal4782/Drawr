@@ -49,8 +49,10 @@ async function getRoom(slug: string, token: string) {
 }
 
 type PageProps = {
-  params: { slug: string };
-  searchParams: { guest?: string; convert?: string };
+  params: Promise<{ slug: string }> & { slug: string };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }> & {
+    [key: string]: string | string[] | undefined;
+  };
 };
 
 export default async function Canvas({ params, searchParams }: PageProps) {

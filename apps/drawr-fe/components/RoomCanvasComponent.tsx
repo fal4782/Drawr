@@ -31,14 +31,6 @@ export function RoomCanvasComponent({
   const shouldConvert = searchParams?.get("convert") === "true";
   const [isImporting, setIsImporting] = useState(shouldConvert);
 
-  console.log("Component rendering with states:", {
-    roomId,
-    token: !!token,
-    isGuestMode,
-    shouldConvert,
-    isImporting,
-    hasSocket: !!socket,
-  });
 
   // Handle drawing import if needed
   useEffect(() => {
