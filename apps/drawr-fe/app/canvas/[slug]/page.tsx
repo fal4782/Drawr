@@ -108,7 +108,13 @@ export default async function Canvas({ params, searchParams }: PageProps) {
 
   try {
     const roomId = await getRoom(slug, session?.accessToken);
-    return <RoomCanvasComponent token={session?.accessToken} roomId={roomId} />;
+    return (
+      <RoomCanvasComponent
+        token={session?.accessToken}
+        roomId={roomId}
+        userId={session.userId}
+      />
+    );
   } catch (error) {
     console.error("Error getting room:", error);
     redirect("/dashboard");

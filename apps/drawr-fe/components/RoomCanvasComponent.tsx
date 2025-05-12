@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { CanvasComponent } from "./CanvasComponent";
 import { UserAvatar } from "./AvatarComponent";
 import { WSLoader } from "./WSLoader";
+import { VoiceCallComponent } from "./VoiceCallComponent";
 import {
   getOrCreateGuestUser,
   GuestUser,
@@ -14,23 +15,32 @@ import {
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
 
+interface RoomUser {
+  username: string;
+  userId: string;
+  isInCall?: boolean;
+  isMuted?: boolean;
+}
+
 export function RoomCanvasComponent({
   roomId,
   token,
   isGuestMode = false,
+  userId,
 }: {
   roomId: string;
   token?: string;
   isGuestMode?: boolean;
+  userId?: string;
 }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const wsUrl = `${WS_BACKEND}?token=${token}`;
-  const [roomUsers, setRoomUsers] = useState<string[]>([]);
+  const [roomUsers, setRoomUsers] = useState<RoomUser[]>([]);
   const [guestUser, setGuestUser] = useState<GuestUser | null>(null);
   const searchParams = useSearchParams();
   const shouldConvert = searchParams?.get("convert") === "true";
   const [isImporting, setIsImporting] = useState(shouldConvert);
-
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Handle drawing import if needed
   useEffect(() => {
@@ -79,7 +89,9 @@ export function RoomCanvasComponent({
       // For guest mode, we don't need a real WebSocket connection
       const user = getOrCreateGuestUser();
       setGuestUser(user);
-      setRoomUsers([user.username]);
+      // Convert user.id to string to match RoomUser interface
+      setRoomUsers([{ username: user.username, userId: String(user.id) }]);
+      setCurrentUserId(String(user.id));
       return;
     }
 
@@ -96,15 +108,24 @@ export function RoomCanvasComponent({
           roomId: Number(roomId),
         })
       );
+
+      // Set current user ID from props or token
+      setCurrentUserId(userId || "");
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "room_users") {
-        const uniqueUsers = [
-          ...new Set((data.users as string[]).filter(Boolean)),
-        ];
-        setRoomUsers(uniqueUsers);
+        // Process room users with call status information
+        if (data.users && Array.isArray(data.users)) {
+          // Explicitly type the filtered users as RoomUser[]
+          const uniqueUsers = [
+            ...new Set(
+              data.users.filter((user: RoomUser) => user && user.username)
+            ),
+          ] as RoomUser[];
+          setRoomUsers(uniqueUsers);
+        }
       }
     };
 
@@ -130,7 +151,7 @@ export function RoomCanvasComponent({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       ws.close();
     };
-  }, [roomId, wsUrl, isGuestMode, token]);
+  }, [roomId, wsUrl, isGuestMode, token, userId]);
 
   if (isImporting) {
     return <WSLoader message="Importing your drawings..." />;
@@ -141,20 +162,42 @@ export function RoomCanvasComponent({
   }
 
   return (
-    <div className="relative">
-      <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-10">
-        {roomUsers.map((username, index) => (
-          <div key={`${username}-${index}`} className="group relative">
-            <UserAvatar name={username} size="sm" />
-          </div>
-        ))}
-      </div>
+    <div className="relative h-screen w-full">
+      {/* Canvas component as the base layer */}
       <CanvasComponent
         roomId={roomId}
         socket={socket}
         isGuestMode={isGuestMode}
         guestUser={isGuestMode ? guestUser : null}
       />
+
+      {/* Overlay elements positioned with absolute */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Voice call component - positioned at the top right */}
+        {!isGuestMode && currentUserId && socket && (
+          <div className="absolute top-24 right-0 z-20 pointer-events-auto">
+            <VoiceCallComponent
+              roomId={roomId}
+              socket={socket}
+              currentUserId={currentUserId}
+            />
+          </div>
+        )}
+
+        {/* User avatars - positioned at the bottom right */}
+        <div className="absolute bottom-4 right-4 flex flex-col-reverse gap-2 z-10 pointer-events-auto">
+          {roomUsers.map((user, index) => (
+            <div key={`${user.username}-${index}`} className="group relative">
+              <UserAvatar name={user.username} size="sm" />
+              {user.isInCall && (
+                <div
+                  className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${user.isMuted ? "bg-red-500" : "bg-green-500"}`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
