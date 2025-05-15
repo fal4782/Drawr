@@ -398,7 +398,7 @@ export function VoiceCallComponent({
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-end gap-2 cursor-default">
       {/* Call Controls */}
       <div className="flex bg-white/5 backdrop-blur-md p-2 rounded-tl-full rounded-bl-full border border-r-0 border-white/20 shadow-md">
         {isInCall ? (
