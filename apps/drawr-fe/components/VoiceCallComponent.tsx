@@ -27,12 +27,85 @@ export function VoiceCallComponent({
   const [callParticipants, setCallParticipants] = useState<User[]>([]);
   const [isAudioReady, setIsAudioReady] = useState(false);
 
+  // Sound notification refs
+  const userJoinSoundRef = useRef<HTMLAudioElement | null>(null);
+  const userLeaveSoundRef = useRef<HTMLAudioElement | null>(null);
+  const userMuteSoundRef = useRef<HTMLAudioElement | null>(null);
+  const userUnmuteSoundRef = useRef<HTMLAudioElement | null>(null);
+
   // WebRTC related refs
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<{ [userId: string]: RTCPeerConnection }>(
     {}
   );
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Negotiation state tracking
+  const makingOfferRef = useRef<{ [userId: string]: boolean }>({});
+  const ignoreOfferRef = useRef<{ [userId: string]: boolean }>({});
+
+  // Initialize sound notification refs
+  useEffect(() => {
+    userJoinSoundRef.current = new Audio("/sounds/join.mp3");
+    userLeaveSoundRef.current = new Audio("/sounds/leave.mp3");
+    userMuteSoundRef.current = new Audio("/sounds/mute.mp3");
+    userUnmuteSoundRef.current = new Audio("/sounds/unmute.mp3");
+
+    // Set volume for all sounds (0.0 to 1.0, where 1.0 is full volume)
+    // Adjust this value to make sounds quieter - 0.3 is a good starting point
+    const soundVolume = 0.6;
+
+    userJoinSoundRef.current.volume = soundVolume;
+    userLeaveSoundRef.current.volume = soundVolume;
+    userMuteSoundRef.current.volume = soundVolume;
+    userUnmuteSoundRef.current.volume = soundVolume;
+
+    // Preload audio files
+    userJoinSoundRef.current.load();
+    userLeaveSoundRef.current.load();
+    userMuteSoundRef.current.load();
+    userUnmuteSoundRef.current.load();
+
+    return () => {
+      // Clean up audio elements
+      userJoinSoundRef.current = null;
+      userLeaveSoundRef.current = null;
+      userMuteSoundRef.current = null;
+      userUnmuteSoundRef.current = null;
+    };
+  }, []);
+
+  // Function to play notification sounds
+  const playNotificationSound = (
+    soundType: "join" | "leave" | "mute" | "unmute",
+    ignoreInCallCheck = false
+  ) => {
+    if (!isInCall && !ignoreInCallCheck) return;
+
+    let soundRef: React.MutableRefObject<HTMLAudioElement | null>;
+
+    switch (soundType) {
+      case "join":
+        soundRef = userJoinSoundRef;
+        break;
+      case "leave":
+        soundRef = userLeaveSoundRef;
+        break;
+      case "mute":
+        soundRef = userMuteSoundRef;
+        break;
+      case "unmute":
+        soundRef = userUnmuteSoundRef;
+        break;
+    }
+
+    if (soundRef.current) {
+      soundRef.current.currentTime = 0;
+      soundRef.current.play().catch((err) => {
+        console.warn("Could not play notification sound:", err);
+      });
+    }
+  };
 
   // Set up WebRTC audio
   useEffect(() => {
@@ -100,6 +173,8 @@ export function VoiceCallComponent({
           roomId: Number(roomId),
         })
       );
+      // Play mute/unmute sound
+      playNotificationSound(isMuted ? "mute" : "unmute");
     }
   }, [isMuted, socket, isInCall, roomId]);
 
@@ -140,6 +215,10 @@ export function VoiceCallComponent({
           if (isInCall && data.user) {
             setCallParticipants((prev) => {
               if (!prev.find((p) => p.userId === data.user.userId)) {
+                // Play join sound if it's not the current user
+                if (data.user.userId !== currentUserId) {
+                  playNotificationSound("join");
+                }
                 return [...prev, data.user];
               }
               return prev;
@@ -154,9 +233,14 @@ export function VoiceCallComponent({
 
         case "user_left_call":
           // Remove participant from the list
-          setCallParticipants((prev) =>
-            prev.filter((p) => p.userId !== data.userId)
-          );
+          setCallParticipants((prev) => {
+            const userExists = prev.some((p) => p.userId === data.userId);
+            if (userExists && data.userId !== currentUserId) {
+              // Play leave sound if it's not the current user
+              playNotificationSound("leave");
+            }
+            return prev.filter((p) => p.userId !== data.userId);
+          });
 
           // Close and clean up peer connection
           if (peerConnectionsRef.current[data.userId]) {
@@ -167,11 +251,15 @@ export function VoiceCallComponent({
 
         case "user_mute_changed":
           // Update mute status for a user
-          setCallParticipants((prev) =>
-            prev.map((p) =>
+          setCallParticipants((prev) => {
+            // Play mute/unmute sound if it's not the current user
+            if (data.userId !== currentUserId) {
+              playNotificationSound(data.isMuted ? "mute" : "unmute");
+            }
+            return prev.map((p) =>
               p.userId === data.userId ? { ...p, isMuted: data.isMuted } : p
-            )
-          );
+            );
+          });
           break;
 
         // WebRTC signaling
@@ -207,9 +295,15 @@ export function VoiceCallComponent({
       ],
     });
 
+    // Initialize negotiation state for this peer
+    makingOfferRef.current[targetUserId] = false;
+    ignoreOfferRef.current[targetUserId] = false;
+
     // Add local stream tracks to the connection
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => {
+        console.log("Adding track to peer connection:", track);
+
         peerConnection.addTrack(track, localStreamRef.current!);
       });
     }
@@ -242,44 +336,60 @@ export function VoiceCallComponent({
       document.body.appendChild(audioElement);
     };
 
+    // Handle negotiation needed - using the polite peer model
+    peerConnection.onnegotiationneeded = async () => {
+      try {
+        // Determine if this peer should be the one making the offer
+        // Simple deterministic approach: compare user IDs
+        const isPolite = currentUserId > targetUserId;
+
+        // Only proceed if we're the polite peer or there's no collision
+        if (isPolite || !makingOfferRef.current[targetUserId]) {
+          console.log(`Negotiation needed for peer ${targetUserId}`);
+          makingOfferRef.current[targetUserId] = true;
+
+          const offer = await peerConnection.createOffer();
+
+          // Check if connection is still valid before proceeding
+          if (peerConnection.signalingState === "closed") {
+            console.log("Connection closed during offer creation");
+            return;
+          }
+
+          await peerConnection.setLocalDescription(offer);
+
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(
+              JSON.stringify({
+                type: "webrtc_offer",
+                offer: peerConnection.localDescription,
+                targetUserId,
+                roomId: Number(roomId),
+              })
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error during negotiation:", error);
+      } finally {
+        makingOfferRef.current[targetUserId] = false;
+      }
+    };
+
     // Save the peer connection
     peerConnectionsRef.current[targetUserId] = peerConnection;
 
-    // If we're the one joining, create an offer
-    if (isInCall && localStreamRef.current) {
-      createOffer(targetUserId, peerConnection);
-    }
-
     return peerConnection;
-  };
-
-  // Create and send an offer
-  const createOffer = async (
-    targetUserId: string,
-    peerConnection: RTCPeerConnection
-  ) => {
-    try {
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(
-          JSON.stringify({
-            type: "webrtc_offer",
-            offer,
-            targetUserId,
-            roomId: Number(roomId),
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error creating offer:", error);
-    }
   };
 
   // Handle incoming WebRTC offer
   const handleWebRTCOffer = async (data: any) => {
     const { fromUserId, offer } = data;
+
+    // Determine politeness based on user IDs
+    const isPolite = currentUserId < fromUserId;
+
+    console.log(`Received offer from ${fromUserId}, isPolite: ${isPolite}`);
 
     // Create peer connection if it doesn't exist
     let peerConnection = peerConnectionsRef.current[fromUserId];
@@ -289,10 +399,40 @@ export function VoiceCallComponent({
       peerConnection = newPeerConnection;
     }
 
+    // Check for offer collision
+    const readyForOffer =
+      !makingOfferRef.current[fromUserId] &&
+      (peerConnection.signalingState === "stable" ||
+        peerConnection.signalingState === "have-remote-offer");
+
+    const offerCollision = !readyForOffer;
+
+    // If we're impolite and there's a collision, ignore this offer
+    if (!isPolite && offerCollision) {
+      console.warn("Ignoring offer due to collision (impolite peer)");
+      return;
+    }
+
+    // Log current state for debugging
+    console.log("Signaling State:", peerConnection.signalingState);
+    console.log("Local Description:", peerConnection.localDescription);
+    console.log("Remote Description:", peerConnection.remoteDescription);
+
     try {
+      // If we have a collision and we're polite, roll back
+      if (offerCollision && isPolite) {
+        console.log(
+          "Polite peer rolling back local description due to collision"
+        );
+        await peerConnection.setLocalDescription({ type: "rollback" });
+      }
+
+      // Set the remote description (the offer)
       await peerConnection.setRemoteDescription(
         new RTCSessionDescription(offer)
       );
+
+      // Create and send an answer
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
@@ -300,7 +440,7 @@ export function VoiceCallComponent({
         socket.send(
           JSON.stringify({
             type: "webrtc_answer",
-            answer,
+            answer: peerConnection.localDescription,
             targetUserId: fromUserId,
             roomId: Number(roomId),
           })
@@ -316,12 +456,29 @@ export function VoiceCallComponent({
     const { fromUserId, answer } = data;
 
     const peerConnection = peerConnectionsRef.current[fromUserId];
-    if (!peerConnection) return;
+    if (!peerConnection) {
+      console.warn(`No peer connection for user ${fromUserId}`);
+      return;
+    }
+
+    // Only set remote description if we're in the right state
+    if (peerConnection.signalingState !== "have-local-offer") {
+      console.warn(
+        `Cannot set remote answer in state: ${peerConnection.signalingState}`
+      );
+      return;
+    }
 
     try {
+      console.log(`Setting remote description (answer) from ${fromUserId}`);
+      console.log("Current signaling state:", peerConnection.signalingState);
+
       await peerConnection.setRemoteDescription(
         new RTCSessionDescription(answer)
       );
+
+      console.log("Remote description set successfully");
+      console.log("New signaling state:", peerConnection.signalingState);
     } catch (error) {
       console.error("Error handling answer:", error);
     }
@@ -354,6 +511,8 @@ export function VoiceCallComponent({
         isMuted: false,
       })
     );
+    // Play join sound for self
+    playNotificationSound("join", true); // Bypass the isInCall check
   };
 
   // Leave the call
@@ -365,6 +524,8 @@ export function VoiceCallComponent({
           roomId: Number(roomId),
         })
       );
+      // Play leave sound for self
+      playNotificationSound("leave");
     }
 
     // Stop audio tracks
@@ -432,7 +593,6 @@ export function VoiceCallComponent({
           </button>
         )}
       </div>
-
       {/* Call Participants */}
       {isInCall && callParticipants.length > 0 && (
         <div className="bg-white/5 backdrop-blur-md text-gray-200 p-3 rounded-tl-lg rounded-bl-lg border border-r-0 border-white/20 shadow-md min-w-48">
@@ -454,13 +614,17 @@ export function VoiceCallComponent({
           </ul>
         </div>
       )}
-
       {/* Loading indicator */}
       {isInCall && !isAudioReady && (
         <div className="bg-gray-800 text-gray-200 p-3 rounded-lg shadow-md">
           <p className="text-sm">Connecting audio...</p>
         </div>
       )}
+      {/* Hidden audio elements for notification sounds */}
+      <audio ref={userJoinSoundRef} preload="auto" />
+      <audio ref={userLeaveSoundRef} preload="auto" />
+      <audio ref={userMuteSoundRef} preload="auto" />
+      <audio ref={userUnmuteSoundRef} preload="auto" />
     </div>
   );
 }
