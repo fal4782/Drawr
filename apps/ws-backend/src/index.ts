@@ -2,7 +2,15 @@ import { WebSocket, WebSocketServer } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-common/config";
 import { prismaClient } from "@repo/db/client";
+import { createClient } from "redis";
 const wss = new WebSocketServer({ port: 8080 });
+
+
+const redisClient = createClient();
+
+(async () => {
+  await redisClient.connect();
+})();
 
 interface User {
   ws: WebSocket;
@@ -175,14 +183,13 @@ wss.on("connection", function (ws, req) {
         return;
       }
 
-      await prismaClient.chat.create({
-        data: {
-          roomId,
-          message: JSON.stringify(parsedMessage.shape),
-          userId,
-          id: parsedMessage.id,
-        },
-      });
+      const shape = JSON.stringify(parsedMessage.shape);
+
+      await redisClient.rPush(
+        "create_queue",
+        JSON.stringify({ roomId, message: shape, userId, id: parsedMessage.id })
+      );
+
 
       users.forEach((user) => {
         if (user.rooms.includes(roomId) && user.ws !== ws) {
@@ -199,12 +206,20 @@ wss.on("connection", function (ws, req) {
       const roomId = parsedData.roomId;
       const messageId = parsedData.messageId;
 
-      await prismaClient.chat.delete({
-        where: {
+      await redisClient.rPush(
+        "delete_queue",
+        JSON.stringify({
           id: messageId,
-          roomId: roomId,
-        },
-      });
+          roomId,
+        })
+      );
+
+      // await prismaClient.chat.delete({
+      //   where: {
+      //     id: messageId,
+      //     roomId: roomId,
+      //   },
+      // });
 
       // Notify other users in the room about deletion
       users.forEach((user) => {
