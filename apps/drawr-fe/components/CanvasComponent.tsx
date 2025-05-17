@@ -16,6 +16,7 @@ import {
   ArrowLeftIcon,
   XIcon,
   ShareIcon,
+  PointerIcon,
 } from "lucide-react";
 import { Game } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
@@ -29,7 +30,8 @@ type Tool =
   | "eraser"
   | "pencil"
   | "text"
-  | "pan";
+  | "pan"
+  | "select";
 
 export function CanvasComponent({
   roomId,
@@ -99,6 +101,7 @@ export function CanvasComponent({
     text: "Click anywhere to add text",
     eraser: "Click to erase",
     pan: "Click and drag to move around",
+    select: "Click to select a shape, drag to move it",
   };
 
   const FloatingTextInput = () => {
@@ -124,6 +127,7 @@ export function CanvasComponent({
             10,
           fontSize: `${20 * gameRef.current!.getScale()}px`,
           color: selectedColor,
+          width: "50%",
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && e.currentTarget.value) {
@@ -161,6 +165,7 @@ export function CanvasComponent({
     else if (selectedTool === "eraser")
       document.body.style.cursor = "url('/circle.png'), auto";
     else if (selectedTool === "pan") document.body.style.cursor = "grab";
+    else if (selectedTool === "select") document.body.style.cursor = "pointer";
     else document.body.style.cursor = "crosshair";
   }, [selectedTool]);
 
@@ -248,9 +253,12 @@ export function CanvasComponent({
           setSelectedTool("text");
           break;
         case "6":
-          setSelectedTool("eraser");
+          setSelectedTool("select");
           break;
         case "7":
+          setSelectedTool("eraser");
+          break;
+        case "8":
           setSelectedTool("pan");
           break;
       }
@@ -289,6 +297,11 @@ export function CanvasComponent({
         gameRef.current?.redo();
         return;
       }
+      // Handle Esc for clear selection
+      if (e.key === "Escape" && selectedTool === "select") {
+        gameRef.current?.clearSelection();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -296,7 +309,7 @@ export function CanvasComponent({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [textInput.isVisible]);
+  }, [textInput.isVisible, selectedTool]);
 
   const handleDownload = () => {
     if (!gameRef.current) return;
@@ -469,13 +482,22 @@ function Topbar({
       />
       <div className="w-px h-8 bg-white/20" /> {/* Divider */}
       <IconButton
+        isActivated={selectedTool === "select"}
+        icon={<PointerIcon />}
+        onClick={() => {
+          setSelectedTool("select");
+        }}
+        keybind="6"
+        title="Select — 6"
+      />
+      <IconButton
         isActivated={selectedTool === "eraser"}
         icon={<EraserIcon />}
         onClick={() => {
           setSelectedTool("eraser");
         }}
-        keybind="6"
-        title="Eraser — 6"
+        keybind="7"
+        title="Eraser — 7"
       />
       <IconButton
         isActivated={selectedTool === "pan"}
@@ -483,8 +505,8 @@ function Topbar({
         onClick={() => {
           setSelectedTool("pan");
         }}
-        keybind="7"
-        title="Pan Tool — 7"
+        keybind="8"
+        title="Pan Tool — 8"
       />
       <IconButton
         icon={<FullscreenIcon />}
