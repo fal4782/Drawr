@@ -67,8 +67,6 @@ export function RoomCanvasComponent({
 
           // Clear guest data after successful import
           clearAllGuestData();
-        } else {
-          console.log("No drawings to import");
         }
 
         setIsImporting(false);
