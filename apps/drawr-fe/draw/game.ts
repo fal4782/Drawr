@@ -18,6 +18,8 @@ export type Shape =
       shape: {
         type: "rectangle";
         strokeColor: string;
+        backgroundColor?: string;
+        fillPattern?: "solid" | "hachure" | "cross-hatch";
         x: number;
         y: number;
         width: number;
@@ -29,6 +31,8 @@ export type Shape =
       shape: {
         strokeColor: string;
         type: "circle";
+        backgroundColor?: string;
+        fillPattern?: "solid" | "hachure" | "cross-hatch";
         centerX: number;
         centerY: number;
         radius: number;
@@ -204,6 +208,7 @@ export class Game {
   setStrokeColor(color: string) {
     this.strokeColor = color;
   }
+
   clearCanvas() {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -221,6 +226,32 @@ export class Game {
     );
     this.existingShapes.map((element) => {
       if (element.shape.type === "rectangle") {
+        // Draw background if it exists
+        if (element.shape.backgroundColor) {
+          this.ctx.fillStyle = element.shape.backgroundColor;
+
+          // Apply fill pattern if specified
+          if (element.shape.fillPattern) {
+            this.applyFillPattern(
+              element.shape.x,
+              element.shape.y,
+              element.shape.width,
+              element.shape.height,
+              element.shape.fillPattern,
+              element.shape.backgroundColor
+            );
+          } else {
+            // Simple fill
+            this.ctx.fillRect(
+              element.shape.x,
+              element.shape.y,
+              element.shape.width,
+              element.shape.height
+            );
+          }
+        }
+
+        // Draw stroke
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.strokeRect(
           element.shape.x,
@@ -229,6 +260,34 @@ export class Game {
           element.shape.height
         );
       } else if (element.shape.type === "circle") {
+        // Draw background if it exists
+        if (element.shape.backgroundColor) {
+          this.ctx.fillStyle = element.shape.backgroundColor;
+          this.ctx.beginPath();
+          this.ctx.arc(
+            element.shape.centerX,
+            element.shape.centerY,
+            element.shape.radius,
+            0,
+            Math.PI * 2
+          );
+
+          // Apply fill pattern if specified
+          if (element.shape.fillPattern) {
+            this.applyCircleFillPattern(
+              element.shape.centerX,
+              element.shape.centerY,
+              element.shape.radius,
+              element.shape.fillPattern,
+              element.shape.backgroundColor
+            );
+          } else {
+            // Simple fill
+            this.ctx.fill();
+          }
+        }
+
+        // Draw stroke
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
         this.ctx.beginPath();
         this.ctx.arc(
@@ -264,10 +323,11 @@ export class Game {
         this.ctx.font = "20px Arial";
         this.ctx.fillText(element.shape.text, element.shape.x, element.shape.y);
       }
-      if (this.selectedShape) {
-        this.drawSelectionOutline();
-      }
     });
+
+    if (this.selectedShape) {
+      this.drawSelectionOutline();
+    }
   }
 
   private initZoomHandler() {
@@ -280,6 +340,9 @@ export class Game {
     });
   }
 
+  getSelectedShape() {
+    return this.selectedShape;
+  }
   getScale() {
     return this.scale;
   }
@@ -527,7 +590,6 @@ export class Game {
   }
 
   // Find the shape at the given position
-  // Find the shape at the given position
   private findShapeAtPosition(
     x: number,
     y: number
@@ -734,6 +796,226 @@ export class Game {
     this.isMovingShape = false;
     this.clearCanvas(); // Redraw without selection outline
   }
+
+  // Helper method to apply fill patterns
+  private applyFillPattern(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    pattern: "solid" | "hachure" | "cross-hatch",
+    color: string
+  ) {
+    if (pattern === "solid") {
+      this.ctx.fillRect(x, y, width, height);
+      return;
+    }
+
+    // Save current state
+    this.ctx.save();
+
+    // Create clipping region
+    this.ctx.beginPath();
+    this.ctx.rect(x, y, width, height);
+    this.ctx.clip();
+
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 1;
+
+    const spacing = 8; // Spacing between lines
+
+    if (pattern === "hachure" || pattern === "cross-hatch") {
+      // Draw diagonal lines (/)
+      for (let i = -height; i < width + height; i += spacing) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + i, y);
+        this.ctx.lineTo(x + i + height, y + height);
+        this.ctx.stroke();
+      }
+    }
+
+    if (pattern === "cross-hatch") {
+      // Draw diagonal lines in the other direction (\)
+      for (let i = -height; i < width + height; i += spacing) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + i, y + height);
+        this.ctx.lineTo(x + i + height, y);
+        this.ctx.stroke();
+      }
+    }
+
+    // Restore context
+    this.ctx.restore();
+  }
+
+  // Helper method to apply fill patterns to circles
+  private applyCircleFillPattern(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    pattern: "solid" | "hachure" | "cross-hatch",
+    color: string
+  ) {
+    if (pattern === "solid") {
+      this.ctx.fill();
+      return;
+    }
+
+    // Save current state
+    this.ctx.save();
+
+    // Create clipping region (circle)
+    this.ctx.clip();
+
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 1;
+
+    const spacing = 8; // Spacing between lines
+    const diameter = radius * 2;
+    const x = centerX - radius;
+    const y = centerY - radius;
+
+    if (pattern === "hachure" || pattern === "cross-hatch") {
+      // Draw diagonal lines (/)
+      for (let i = -diameter; i < diameter * 2; i += spacing) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + i, y);
+        this.ctx.lineTo(x + i + diameter, y + diameter);
+        this.ctx.stroke();
+      }
+    }
+
+    if (pattern === "cross-hatch") {
+      // Draw diagonal lines in the other direction (\)
+      for (let i = -diameter; i < diameter * 2; i += spacing) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + i, y + diameter);
+        this.ctx.lineTo(x + i + diameter, y);
+        this.ctx.stroke();
+      }
+    }
+
+    // Restore context
+    this.ctx.restore();
+  }
+
+  // Update the stroke color of the selected shape
+  updateSelectedShapeStrokeColor(color: string) {
+    if (!this.selectedShape) return;
+
+    this.selectedShape.shape.strokeColor = color;
+
+    // Update the shape in the array
+    if (this.selectedShapeIndex >= 0) {
+      this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
+    }
+
+    // Send the updated shape to the server if not in guest mode
+    if (!this.guestMode && this.socket && this.selectedShape.id) {
+      this.socket.send(
+        JSON.stringify({
+          type: "delete_message",
+          roomId: Number(this.roomId),
+          messageId: this.selectedShape.id,
+        })
+      );
+
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          message: JSON.stringify(this.selectedShape),
+          roomId: Number(this.roomId),
+        })
+      );
+    } else if (this.guestMode) {
+      this.saveGuestCanvasData();
+    }
+
+    this.clearCanvas();
+  }
+
+  // Update the background color of the selected shape
+  updateSelectedShapeBackgroundColor(color: string | undefined) {
+    if (!this.selectedShape) return;
+
+    // Only apply to rectangle and circle
+    if (
+      this.selectedShape.shape.type === "rectangle" ||
+      this.selectedShape.shape.type === "circle"
+    ) {
+      this.selectedShape.shape.backgroundColor = color;
+
+      // Update the shape in the array
+      if (this.selectedShapeIndex >= 0) {
+        this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
+      }
+
+      // Send the updated shape to the server if not in guest mode
+      if (!this.guestMode && this.socket && this.selectedShape.id) {
+        this.socket.send(
+          JSON.stringify({
+            type: "delete_message",
+            roomId: Number(this.roomId),
+            messageId: this.selectedShape.id,
+          })
+        );
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            message: JSON.stringify(this.selectedShape),
+            roomId: Number(this.roomId),
+          })
+        );
+      } else if (this.guestMode) {
+        this.saveGuestCanvasData();
+      }
+
+      this.clearCanvas();
+    }
+  }
+
+  // Update the fill pattern of the selected shape
+  updateSelectedShapeFillPattern(pattern: "solid" | "hachure" | "cross-hatch") {
+    if (!this.selectedShape) return;
+
+    // Only apply to rectangle and circle
+    if (
+      this.selectedShape.shape.type === "rectangle" ||
+      this.selectedShape.shape.type === "circle"
+    ) {
+      this.selectedShape.shape.fillPattern = pattern;
+
+      // Update the shape in the array
+      if (this.selectedShapeIndex >= 0) {
+        this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
+      }
+
+      // Send the updated shape to the server if not in guest mode
+      if (!this.guestMode && this.socket && this.selectedShape.id) {
+        this.socket.send(
+          JSON.stringify({
+            type: "delete_message",
+            roomId: Number(this.roomId),
+            messageId: this.selectedShape.id,
+          })
+        );
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            message: JSON.stringify(this.selectedShape),
+            roomId: Number(this.roomId),
+          })
+        );
+      } else if (this.guestMode) {
+        this.saveGuestCanvasData();
+      }
+
+      this.clearCanvas();
+    }
+  }
+
   mouseDownHandler = (e: MouseEvent) => {
     // Only proceed with left click (button 0) for most tools
     // or middle click (button 1) for panning

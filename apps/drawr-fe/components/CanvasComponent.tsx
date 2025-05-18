@@ -17,8 +17,11 @@ import {
   XIcon,
   ShareIcon,
   PointerIcon,
+  Droplet,
+  LayoutGridIcon,
+  GridIcon,
 } from "lucide-react";
-import { Game } from "@/draw/game";
+import { Game, Shape } from "@/draw/game";
 import { usePageSize } from "@/hooks/usePagesize";
 import { useRouter } from "next/navigation";
 import { GuestUser } from "@/utils/guestUser";
@@ -52,7 +55,23 @@ export function CanvasComponent({
   const router = useRouter();
   const [gameInitialized, setGameInitialized] = useState(false);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
+  const [textInput, setTextInput] = useState({
+    isVisible: false,
+    x: 0,
+    y: 0,
+  });
 
+  const toolDescriptions: Record<Tool, string> = {
+    pencil: "Click and drag, release when you're finished",
+    line: "Click and drag",
+    rectangle: "Click and drag to set size",
+    circle: "Click and drag to set size",
+    text: "Click anywhere to add text",
+    eraser: "Click to erase",
+    pan: "Click and drag to move around",
+    select: "Click to select a shape, drag to move it",
+  };
   useEffect(() => {
     gameRef.current?.setStrokeColor(selectedColor);
   }, [selectedColor]);
@@ -86,23 +105,27 @@ export function CanvasComponent({
     gameRef.current?.clearCanvas();
   }, [pageSize]);
 
-  const [selectedTool, setSelectedTool] = useState<Tool>("pencil");
-  const [textInput, setTextInput] = useState({
-    isVisible: false,
-    x: 0,
-    y: 0,
-  });
+  // Add this useEffect to update the UI when a shape is selected or deselected
+  useEffect(() => {
+    // Create a function to check if a shape is selected
+    const checkSelection = () => {
+      const selectedShape = gameRef.current?.getSelectedShape();
+      // Force a re-render when selection state changes
+      setSelectedColor((prevColor) => {
+        // If a shape is selected, update the selected color to match the shape's stroke color
+        if (selectedShape) {
+          return selectedShape.shape.strokeColor;
+        }
+        // Otherwise, keep the current color
+        return prevColor;
+      });
+    };
 
-  const toolDescriptions: Record<Tool, string> = {
-    pencil: "Click and drag, release when you're finished",
-    line: "Click and drag",
-    rectangle: "Click and drag to set size",
-    circle: "Click and drag to set size",
-    text: "Click anywhere to add text",
-    eraser: "Click to erase",
-    pan: "Click and drag to move around",
-    select: "Click to select a shape, drag to move it",
-  };
+    // Set up an interval to periodically check
+    const intervalId = setInterval(checkSelection, 200);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const FloatingTextInput = () => {
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -186,7 +209,6 @@ export function CanvasComponent({
     };
   }, [roomId, socket, zoomOnScroll, isGuestMode]);
 
-  // Add a signup prompt modal
   const SignupPrompt = () => {
     if (!showSignupPrompt) return null;
 
@@ -409,11 +431,17 @@ export function CanvasComponent({
         </div>
       )}
       {isGuestMode && <SignupPrompt />}
-
-      <ColorBar
-        selectedColor={selectedColor}
-        setSelectedColor={setSelectedColor}
-      />
+      {shouldShowColorBar(
+        selectedTool,
+        gameRef.current?.getSelectedShape() || null
+      ) && (
+        <ColorBar
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
+          game={gameRef.current}
+          selectedTool={selectedTool}
+        />
+      )}
       {gameInitialized && (
         <div className="fixed bottom-4 left-4 flex gap-2">
           <ZoomBar game={gameRef.current} />
@@ -521,9 +549,13 @@ function Topbar({
 function ColorBar({
   selectedColor,
   setSelectedColor,
+  game,
+  selectedTool,
 }: {
   selectedColor: string;
   setSelectedColor: (color: string) => void;
+  game: Game | null;
+  selectedTool: Tool;
 }) {
   const colors = [
     "#FFFFFF",
@@ -536,21 +568,204 @@ function ColorBar({
     "#F472B6",
   ];
 
+  const selectedShape = game?.getSelectedShape();
+  const isShapeSelected = !!selectedShape;
+
+  // Determine if we should show background and fill options
+  const showBackgroundOptions =
+    // Show for rectangle and circle tools
+    selectedTool === "rectangle" ||
+    selectedTool === "circle" ||
+    // Show when a rectangle or circle is selected
+    (selectedTool === "select" &&
+      isShapeSelected &&
+      (selectedShape.shape.type === "rectangle" ||
+        selectedShape.shape.type === "circle"));
+
+  const isRectOrCircle =
+    isShapeSelected &&
+    (selectedShape.shape.type === "rectangle" ||
+      selectedShape.shape.type === "circle");
+
+  // Get current properties of the selected shape
+  const currentStrokeColor = isShapeSelected
+    ? selectedShape.shape.strokeColor
+    : selectedColor;
+
+  const currentBgColor =
+    showBackgroundOptions &&
+    isShapeSelected &&
+    (selectedShape.shape.type === "rectangle" ||
+      selectedShape.shape.type === "circle")
+      ? selectedShape.shape.backgroundColor || "transparent"
+      : "transparent";
+
+  const currentFillPattern = isRectOrCircle
+    ? selectedShape.shape.type === "rectangle" ||
+      selectedShape.shape.type === "circle"
+      ? selectedShape.shape.fillPattern || "solid"
+      : "solid"
+    : "solid";
+
+  // Handle stroke color change
+  const handleStrokeColorChange = (color: string) => {
+    if (isShapeSelected) {
+      game?.updateSelectedShapeStrokeColor(color);
+    } else {
+      setSelectedColor(color);
+    }
+  };
+
+  // Handle background color change
+  const handleBgColorChange = (color: string | undefined) => {
+    if (
+      isShapeSelected &&
+      (selectedShape.shape.type === "rectangle" ||
+        selectedShape.shape.type === "circle")
+    ) {
+      game?.updateSelectedShapeBackgroundColor(color);
+    }
+  };
+
+  // Handle fill pattern change
+  const handleFillPatternChange = (
+    pattern: "solid" | "hachure" | "cross-hatch"
+  ) => {
+    if (
+      isShapeSelected &&
+      (selectedShape.shape.type === "rectangle" ||
+        selectedShape.shape.type === "circle")
+    ) {
+      game?.updateSelectedShapeFillPattern(pattern);
+    }
+  };
+
   return (
-    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-4 bg-white/5 backdrop-blur-md p-3 rounded-2xl border border-white/20 cursor-default">
-      {colors.map((color) => (
-        <button
-          key={color}
-          onClick={() => setSelectedColor(color)}
-          style={{ backgroundColor: color }}
-          className={`w-8 h-8 rounded-full transition-all duration-300 shadow-md
-            ${
-              selectedColor === color
-                ? "scale-125 ring-2 ring-white/50 shadow-lg"
-                : "hover:scale-110 hover:ring-2 hover:ring-white/30"
-            }`}
-        />
-      ))}
+    <div className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col bg-white/5 backdrop-blur-md p-5 rounded-xl border border-white/20 w-52 cursor-default">
+      {/* Stroke color section */}
+      <div className="mb-3">
+        <div className="text-white/80 text-xs font-medium flex items-center gap-2 mb-2.5">
+          <Droplet size={14} className="text-white/60" />
+          <span>Stroke</span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2">
+          {colors.map((color) => (
+            <button
+              key={`stroke-${color}`}
+              onClick={() => handleStrokeColorChange(color)}
+              style={{ backgroundColor: color }}
+              className={`w-8 h-8 rounded-lg transition-all duration-200 ${
+                currentStrokeColor === color
+                  ? "ring-2 ring-white/70 shadow-md"
+                  : "hover:scale-105 hover:ring-1 hover:ring-white/40"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Background options - only for rectangle and circle */}
+      {showBackgroundOptions && (
+        <>
+          <div className="w-full h-px bg-white/10 my-2"></div>
+
+          <div className="my-3">
+            <div className="text-white/80 text-xs font-medium flex items-center gap-2 mb-2.5">
+              <GridIcon size={14} className="text-white/60" />
+              <span>Background</span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {/* Transparent option */}
+              <button
+                onClick={() => handleBgColorChange(undefined)}
+                className={`w-8 h-8 rounded-lg transition-all duration-200 bg-transparent ${
+                  currentBgColor === "transparent"
+                    ? "ring-2 ring-white/70 shadow-md"
+                    : "ring-1 ring-white/20 hover:ring-white/40"
+                } flex items-center justify-center`}
+              >
+                <XIcon size={14} className="text-white/80" />
+              </button>
+
+              {/* Color options */}
+              {colors.slice(0, 7).map((color) => (
+                <button
+                  key={`bg-${color}`}
+                  onClick={() => handleBgColorChange(color)}
+                  style={{ backgroundColor: color }}
+                  className={`w-8 h-8 rounded-lg transition-all duration-200 ${
+                    currentBgColor === color
+                      ? "ring-2 ring-white/70 shadow-md"
+                      : "hover:scale-105 hover:ring-1 hover:ring-white/40"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-white/10 my-2"></div>
+
+          <div className="mt-3">
+            <div className="text-white/80 text-xs font-medium flex items-center gap-2 mb-2.5">
+              <LayoutGridIcon size={14} className="text-white/60" />
+              <span>Fill Style</span>
+            </div>
+
+            <div className="flex justify-between gap-2">
+              {/* Fill pattern options */}
+              <button
+                onClick={() => handleFillPatternChange("solid")}
+                className={`flex-1 py-2 rounded-lg transition-all duration-200 ${
+                  currentFillPattern === "solid"
+                    ? "bg-white/20 ring-2 ring-white/50"
+                    : "bg-white/5 hover:bg-white/10"
+                } flex items-center justify-center`}
+                title="Solid Fill"
+              >
+                <div className="w-6 h-6 bg-white/70 rounded"></div>
+              </button>
+
+              <button
+                onClick={() => handleFillPatternChange("hachure")}
+                className={`flex-1 py-2 rounded-lg transition-all duration-200 ${
+                  currentFillPattern === "hachure"
+                    ? "bg-white/20 ring-2 ring-white/50"
+                    : "bg-white/5 hover:bg-white/10"
+                } flex items-center justify-center`}
+                title="Diagonal Lines"
+              >
+                <div
+                  className="w-6 h-6 bg-white/70 rounded"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)",
+                  }}
+                ></div>
+              </button>
+
+              <button
+                onClick={() => handleFillPatternChange("cross-hatch")}
+                className={`flex-1 py-2 rounded-lg transition-all duration-200 ${
+                  currentFillPattern === "cross-hatch"
+                    ? "bg-white/20 ring-2 ring-white/50"
+                    : "bg-white/5 hover:bg-white/10"
+                } flex items-center justify-center`}
+                title="Cross-Hatch"
+              >
+                <div
+                  className="w-6 h-6 bg-white/70 rounded"
+                  style={{
+                    backgroundImage:
+                      "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px), repeating-linear-gradient(135deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)",
+                  }}
+                ></div>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -645,4 +860,25 @@ function UndoRedoBar({ game }: { game: Game | null }) {
       />
     </div>
   );
+}
+
+// Function to determine if the color bar should be shown
+function shouldShowColorBar(tool: Tool, selectedShape: Shape | null): boolean {
+  // Always show for rectangle and circle tools
+  if (tool === "rectangle" || tool === "circle") {
+    return true;
+  }
+
+  // Show for line, pencil, and text tools
+  if (tool === "line" || tool === "pencil" || tool === "text") {
+    return true;
+  }
+
+  // Show when a shape is selected with the select tool
+  if (tool === "select" && selectedShape) {
+    return true;
+  }
+
+  // Hide for pan and eraser tools
+  return false;
 }
