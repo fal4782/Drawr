@@ -494,7 +494,7 @@ export function CanvasComponent({
         selectedTool,
         gameRef.current?.getSelectedShape() || null
       ) && (
-        <ColorBar
+        <DrawingToolbar
           selectedColor={selectedColor}
           setSelectedColor={setSelectedColor}
           game={gameRef.current}
@@ -613,7 +613,7 @@ function Topbar({
   );
 }
 
-function ColorBar({
+function DrawingToolbar({
   selectedColor,
   setSelectedColor,
   game,
