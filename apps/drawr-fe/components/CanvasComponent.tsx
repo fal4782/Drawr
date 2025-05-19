@@ -125,10 +125,19 @@ export function CanvasComponent({
     gameRef.current?.clearCanvas();
   }, [pageSize]);
 
-  // Add an effect to check for selection changes
+  // tool sync and selection changes
   useEffect(() => {
-    const handleSelectionChange = () => {
-      const shape = gameRef.current?.getSelectedShape();
+    const handleCanvasEvents = (event: MouseEvent) => {
+      if (!gameRef.current || !gameInitialized) return;
+
+      // Sync the tool state
+      const currentGameTool = gameRef.current.getTool();
+      if (currentGameTool !== selectedTool) {
+        setSelectedTool(currentGameTool);
+      }
+
+      // Handle selection changes
+      const shape = gameRef.current.getSelectedShape();
       if (shape) {
         setSelectedShapeId(shape.id || null);
         // Update UI based on selected shape properties
@@ -153,32 +162,30 @@ export function CanvasComponent({
       }
     };
 
-    // Add event listeners to canvas for mousedown events
+    // Add event listeners to canvas for mouse events
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.addEventListener("mousedown", handleSelectionChange);
-      canvas.addEventListener("mouseup", handleSelectionChange);
+      canvas.addEventListener("mousedown", handleCanvasEvents);
+      canvas.addEventListener("mouseup", handleCanvasEvents);
     }
 
     return () => {
       if (canvas) {
-        canvas.removeEventListener("mousedown", handleSelectionChange);
-        canvas.removeEventListener("mouseup", handleSelectionChange);
+        canvas.removeEventListener("mousedown", handleCanvasEvents);
+        canvas.removeEventListener("mouseup", handleCanvasEvents);
       }
     };
-  }, [gameInitialized]);
+  }, [gameInitialized, selectedTool]);
 
   const FloatingTextInput = () => {
     const inputRef = useRef<HTMLInputElement | null>(null);
-    // Map font size to pixel value
-    const fontSizePx =
-      fontSize === "small"
-        ? 14
-        : fontSize === "medium"
-          ? 20
-          : fontSize === "large"
-            ? 28
-            : 36;
+    const fontSizeMap = {
+      small: 14,
+      medium: 20,
+      large: 28,
+      xlarge: 36,
+    };
+    const fontSizePx = fontSizeMap[fontSize];
 
     useEffect(() => {
       if (inputRef.current) {
@@ -211,7 +218,7 @@ export function CanvasComponent({
               fontSize
             );
             setTextInput({ ...textInput, isVisible: false });
-            document.body.style.cursor = "crosshair";
+            setSelectedTool("select");
           }
           if (e.key === "Escape") {
             setTextInput({ ...textInput, isVisible: false });
@@ -228,7 +235,7 @@ export function CanvasComponent({
             );
           }
           setTextInput({ ...textInput, isVisible: false });
-          document.body.style.cursor = "crosshair";
+          setSelectedTool("select");
         }}
       />
     ) : null;

@@ -87,7 +87,7 @@ export class Game {
   private clicked: boolean;
   private startX: number = 0;
   private startY: number = 0;
-  private selectedTool = "pencil";
+  private selectedTool: Tool = "pencil";
   private currentPath: { x: number; y: number }[] = [];
   private strokeColor: string = "white";
   private strokeWidth: number = 1;
@@ -133,6 +133,9 @@ export class Game {
     this.initMouseHandlers();
   }
 
+  getTool(): Tool {
+    return this.selectedTool;
+  }
   setTool(tool: Tool) {
     if (this.selectedTool === "select" && tool !== "select") {
       this.clearSelection();
@@ -197,6 +200,9 @@ export class Game {
     } else if (this.guestMode) {
       this.saveGuestCanvasData(); // Save to localStorage in guest mode
     }
+    this.selectedShape = newShape;
+    this.selectedShapeIndex = this.existingShapes.length - 1;
+    document.body.style.cursor = "pointer";
     this.clearCanvas();
   }
 
@@ -1505,9 +1511,10 @@ export class Game {
       this.saveGuestCanvasData(); // Save to localStorage in guest mode
     }
 
-    // Clear the selection after the move is complete
-    this.selectedShape = null;
-    this.selectedShapeIndex = -1;
+    // Select the newly created shape
+    this.selectedShape = newShape;
+    this.selectedShapeIndex = this.existingShapes.length - 1;
+    this.selectedTool = "select";
     document.body.style.cursor = "pointer";
     this.clearCanvas();
   };
