@@ -18,6 +18,7 @@ export type Shape =
       shape: {
         type: "rectangle";
         strokeColor: string;
+        strokeWidth?: number;
         backgroundColor?: string;
         fillPattern?: "solid" | "hachure" | "cross-hatch";
         x: number;
@@ -30,6 +31,7 @@ export type Shape =
       id?: number;
       shape: {
         strokeColor: string;
+        strokeWidth?: number;
         type: "circle";
         backgroundColor?: string;
         fillPattern?: "solid" | "hachure" | "cross-hatch";
@@ -42,6 +44,7 @@ export type Shape =
       id?: number;
       shape: {
         strokeColor: string;
+        strokeWidth?: number;
         type: "line";
         startX: number;
         startY: number;
@@ -53,6 +56,7 @@ export type Shape =
       id?: number;
       shape: {
         strokeColor: string;
+        strokeWidth?: number;
         type: "pencil";
         points: { x: number; y: number }[];
       };
@@ -61,6 +65,7 @@ export type Shape =
       id?: number;
       shape: {
         strokeColor: string;
+        fontSize?: "small" | "medium" | "large" | "xlarge";
         type: "text";
         text: string;
         x: number;
@@ -85,6 +90,9 @@ export class Game {
   private selectedTool = "pencil";
   private currentPath: { x: number; y: number }[] = [];
   private strokeColor: string = "white";
+  private strokeWidth: number = 1;
+  private backgroundColor: string | undefined = undefined;
+  private fillPattern: "solid" | "hachure" | "cross-hatch" = "solid";
   private scale: number = 1;
   private offsetX: number = 0;
   private offsetY: number = 0;
@@ -132,17 +140,42 @@ export class Game {
     this.selectedTool = tool;
   }
 
-  addText(text: string, x: number, y: number) {
+  addText(
+    text: string,
+    x: number,
+    y: number,
+    fontSize: "small" | "medium" | "large" | "xlarge" = "medium"
+  ) {
+    let fontSizePx = 20;
+    let heightPx = 30;
+
+    if (fontSize === "small") {
+      fontSizePx = 14;
+      heightPx = 20;
+    } else if (fontSize === "medium") {
+      fontSizePx = 20;
+      heightPx = 30;
+    } else if (fontSize === "large") {
+      fontSizePx = 28;
+      heightPx = 40;
+    } else if (fontSize === "xlarge") {
+      fontSizePx = 36;
+      heightPx = 50;
+    }
+
+    // Set font for measuring text width
+    this.ctx.font = `${fontSizePx}px Arial`;
     const newShape: Shape = {
       id: generateId(),
       shape: {
         type: "text",
         strokeColor: this.strokeColor,
+        fontSize: fontSize,
         text,
         x,
-        y: y + 10,
+        y: y + fontSizePx / 2, // Adjust y position based on font size
         width: this.ctx.measureText(text).width + 20,
-        height: 30,
+        height: heightPx,
       },
     };
     this.existingShapes.push(newShape);
@@ -208,7 +241,16 @@ export class Game {
   setStrokeColor(color: string) {
     this.strokeColor = color;
   }
+  setStrokeWidth(width: number) {
+    this.strokeWidth = width;
+  }
+  setBackgroundColor(color: string | undefined) {
+    this.backgroundColor = color;
+  }
 
+  setFillPattern(pattern: "solid" | "hachure" | "cross-hatch") {
+    this.fillPattern = pattern;
+  }
   clearCanvas() {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -229,7 +271,6 @@ export class Game {
         // Draw background if it exists
         if (element.shape.backgroundColor) {
           this.ctx.fillStyle = element.shape.backgroundColor;
-
           // Apply fill pattern if specified
           if (element.shape.fillPattern) {
             this.applyFillPattern(
@@ -250,9 +291,9 @@ export class Game {
             );
           }
         }
-
         // Draw stroke
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
+        this.ctx.lineWidth = element.shape.strokeWidth || 1;
         this.ctx.strokeRect(
           element.shape.x,
           element.shape.y,
@@ -289,6 +330,7 @@ export class Game {
 
         // Draw stroke
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
+        this.ctx.lineWidth = element.shape.strokeWidth || 1;
         this.ctx.beginPath();
         this.ctx.arc(
           element.shape.centerX,
@@ -301,6 +343,7 @@ export class Game {
         this.ctx.closePath();
       } else if (element.shape.type === "line") {
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
+        this.ctx.lineWidth = element.shape.strokeWidth || 1;
         this.ctx.beginPath();
         this.ctx.moveTo(element.shape.startX, element.shape.startY);
         this.ctx.lineTo(element.shape.endX, element.shape.endY);
@@ -311,6 +354,7 @@ export class Game {
         element.shape.points?.length > 0
       ) {
         this.ctx.strokeStyle = element.shape.strokeColor || "white";
+        this.ctx.lineWidth = element.shape.strokeWidth || 1;
         this.ctx.beginPath();
         this.ctx.moveTo(element.shape.points[0].x, element.shape.points[0].y);
         for (const point of element.shape.points) {
@@ -320,9 +364,17 @@ export class Game {
         this.ctx.closePath();
       } else if (element.shape.type === "text") {
         this.ctx.fillStyle = element.shape.strokeColor || "white";
-        this.ctx.font = "20px Arial";
+        let fontSizePx = 20;
+        if (element.shape.fontSize === "small") fontSizePx = 14;
+        else if (element.shape.fontSize === "medium") fontSizePx = 20;
+        else if (element.shape.fontSize === "large") fontSizePx = 28;
+        else if (element.shape.fontSize === "xlarge") fontSizePx = 36;
+
+        this.ctx.font = `${fontSizePx}px Arial`;
         this.ctx.fillText(element.shape.text, element.shape.x, element.shape.y);
       }
+      // Reset line width to default after drawing
+      this.ctx.lineWidth = 1;
     });
 
     if (this.selectedShape) {
@@ -1016,6 +1068,84 @@ export class Game {
     }
   }
 
+  // Update the stroke width of the selected shape
+  updateSelectedShapeStrokeWidth(width: number) {
+    if (!this.selectedShape) return;
+
+    // Don't apply to text
+    if (this.selectedShape.shape.type !== "text") {
+      this.selectedShape.shape.strokeWidth = width;
+
+      // Update the shape in the array
+      if (this.selectedShapeIndex >= 0) {
+        this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
+      }
+
+      // Send the updated shape to the server if not in guest mode
+      if (!this.guestMode && this.socket && this.selectedShape.id) {
+        this.socket.send(
+          JSON.stringify({
+            type: "delete_message",
+            roomId: Number(this.roomId),
+            messageId: this.selectedShape.id,
+          })
+        );
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            message: JSON.stringify(this.selectedShape),
+            roomId: Number(this.roomId),
+          })
+        );
+      } else if (this.guestMode) {
+        this.saveGuestCanvasData();
+      }
+
+      this.clearCanvas();
+    }
+  }
+
+  // Update the font size of the selected text
+  updateSelectedTextFontSize(
+    fontSize: "small" | "medium" | "large" | "xlarge"
+  ) {
+    if (!this.selectedShape) return;
+
+    // Only apply to text
+    if (this.selectedShape.shape.type === "text") {
+      this.selectedShape.shape.fontSize = fontSize;
+
+      // Update the shape in the array
+      if (this.selectedShapeIndex >= 0) {
+        this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
+      }
+
+      // Send the updated shape to the server if not in guest mode
+      if (!this.guestMode && this.socket && this.selectedShape.id) {
+        this.socket.send(
+          JSON.stringify({
+            type: "delete_message",
+            roomId: Number(this.roomId),
+            messageId: this.selectedShape.id,
+          })
+        );
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            message: JSON.stringify(this.selectedShape),
+            roomId: Number(this.roomId),
+          })
+        );
+      } else if (this.guestMode) {
+        this.saveGuestCanvasData();
+      }
+
+      this.clearCanvas();
+    }
+  }
+
   mouseDownHandler = (e: MouseEvent) => {
     // Only proceed with left click (button 0) for most tools
     // or middle click (button 1) for panning
@@ -1279,6 +1409,9 @@ export class Game {
         shape: {
           type: "rectangle",
           strokeColor: this.strokeColor,
+          strokeWidth: this.strokeWidth,
+          backgroundColor: this.backgroundColor,
+          fillPattern: this.backgroundColor ? this.fillPattern : undefined,
           x: Math.min(this.startX, transformedX),
           y: Math.min(this.startY, transformedY),
           height: Math.abs(height),
@@ -1292,6 +1425,9 @@ export class Game {
         shape: {
           type: "circle",
           strokeColor: this.strokeColor,
+          strokeWidth: this.strokeWidth,
+          backgroundColor: this.backgroundColor,
+          fillPattern: this.backgroundColor ? this.fillPattern : undefined,
           radius,
           centerX: this.startX + width / 2,
           centerY: this.startY + height / 2,
@@ -1303,6 +1439,7 @@ export class Game {
         shape: {
           type: "line",
           strokeColor: this.strokeColor,
+          strokeWidth: this.strokeWidth,
           startX: this.startX,
           startY: this.startY,
           endX: transformedX,
@@ -1315,6 +1452,7 @@ export class Game {
         shape: {
           type: "pencil",
           strokeColor: this.strokeColor,
+          strokeWidth: this.strokeWidth,
           points: this.currentPath,
         },
       };
@@ -1433,18 +1571,58 @@ export class Game {
 
       this.clearCanvas();
       this.ctx.strokeStyle = this.strokeColor || "rgba(255, 255, 255)";
-
+      this.ctx.lineWidth = this.strokeWidth || 1;
       if (this.selectedTool === "rectangle") {
-        this.ctx.strokeRect(
-          Math.min(this.startX, transformedX),
-          Math.min(this.startY, transformedY),
-          Math.abs(width),
-          Math.abs(height)
-        );
+        const x = Math.min(this.startX, transformedX);
+        const y = Math.min(this.startY, transformedY);
+        const rectWidth = Math.abs(width);
+        const rectHeight = Math.abs(height);
+        // Draw background if it exists
+        if (this.backgroundColor) {
+          this.ctx.fillStyle = this.backgroundColor;
+
+          // Apply fill pattern if specified
+          if (this.fillPattern) {
+            this.applyFillPattern(
+              x,
+              y,
+              rectWidth,
+              rectHeight,
+              this.fillPattern,
+              this.backgroundColor
+            );
+          } else {
+            // Simple fill
+            this.ctx.fillRect(x, y, rectWidth, rectHeight);
+          }
+        }
+        // Draw stroke
+        this.ctx.strokeRect(x, y, rectWidth, rectHeight);
       } else if (this.selectedTool === "circle") {
         const radius = Math.sqrt(width ** 2 + height ** 2) / 2;
         const centerX = this.startX + width / 2;
         const centerY = this.startY + height / 2;
+        // Draw background if it exists
+        if (this.backgroundColor) {
+          this.ctx.fillStyle = this.backgroundColor;
+          this.ctx.beginPath();
+          this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+
+          // Apply fill pattern if specified
+          if (this.fillPattern) {
+            this.applyCircleFillPattern(
+              centerX,
+              centerY,
+              radius,
+              this.fillPattern,
+              this.backgroundColor
+            );
+          } else {
+            // Simple fill
+            this.ctx.fill();
+          }
+        }
+        // Draw stroke
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.stroke();
@@ -1460,13 +1638,15 @@ export class Game {
         this.clearCanvas();
         // Draw the current path
         this.ctx.beginPath();
-        this.ctx.strokeStyle = this.strokeColor; // Add this line
+        this.ctx.strokeStyle = this.strokeColor;
+        this.ctx.lineWidth = this.strokeWidth;
         this.ctx.moveTo(this.currentPath[0].x, this.currentPath[0].y);
         for (const point of this.currentPath) {
           this.ctx.lineTo(point.x, point.y);
         }
         this.ctx.stroke();
       }
+      this.ctx.lineWidth = 1;
     }
   };
 
