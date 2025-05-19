@@ -145,13 +145,20 @@ export function CanvasComponent({
 
         if (shape.shape.type === "text" && shape.shape.fontSize) {
           setFontSize(shape.shape.fontSize);
+        } else if (shape.shape.type !== "text" && shape.shape.strokeWidth) {
+          setStrokeWidth(shape.shape.strokeWidth);
         }
 
         if (shape.shape.type === "rectangle" || shape.shape.type === "circle") {
           setBackgroundColor(shape.shape.backgroundColor);
           if (shape.shape.fillPattern) {
             setFillPattern(shape.shape.fillPattern);
+          } else {
+            setFillPattern("solid");
           }
+        } else {
+          setBackgroundColor(undefined);
+          setFillPattern("solid");
         }
 
         if (shape.shape.type !== "text" && shape.shape.strokeWidth) {
@@ -260,6 +267,32 @@ export function CanvasComponent({
         zoomOnScroll,
         isGuestMode
       );
+      // Set the callback for property changes
+      gameRef.current.setOnShapePropertyChange(() => {
+        const shape = gameRef.current?.getSelectedShape();
+        if (shape) {
+          // Update toolbar states based on the shape properties
+          setSelectedColor(shape.shape.strokeColor);
+
+          if (shape.shape.type === "text" && shape.shape.fontSize) {
+            setFontSize(shape.shape.fontSize);
+          }
+
+          if (shape.shape.type !== "text" && shape.shape.strokeWidth) {
+            setStrokeWidth(shape.shape.strokeWidth);
+          }
+
+          if (
+            shape.shape.type === "rectangle" ||
+            shape.shape.type === "circle"
+          ) {
+            setBackgroundColor(shape.shape.backgroundColor);
+            if (shape.shape.fillPattern) {
+              setFillPattern(shape.shape.fillPattern);
+            }
+          }
+        }
+      });
       // Set the initialized state to true
       setGameInitialized(true);
     }

@@ -122,6 +122,7 @@ export class Game {
   private moveStartX: number = 0;
   private moveStartY: number = 0;
   private originalShapeBeforeMove: Shape | null = null;
+  private onShapePropertyChange: (() => void) | null = null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -269,6 +270,11 @@ export class Game {
   setFillPattern(pattern: "solid" | "hachure" | "cross-hatch") {
     this.fillPattern = pattern;
   }
+
+  setOnShapePropertyChange(callback: () => void) {
+    this.onShapePropertyChange = callback;
+  }
+
   clearCanvas() {
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -1020,6 +1026,10 @@ export class Game {
       this.saveGuestCanvasData();
     }
 
+    if (this.onShapePropertyChange) {
+      this.onShapePropertyChange();
+    }
+
     this.clearCanvas();
   }
 
@@ -1071,6 +1081,9 @@ export class Game {
         );
       } else if (this.guestMode) {
         this.saveGuestCanvasData();
+      }
+      if (this.onShapePropertyChange) {
+        this.onShapePropertyChange();
       }
 
       this.clearCanvas();
@@ -1127,6 +1140,10 @@ export class Game {
         this.saveGuestCanvasData();
       }
 
+      if (this.onShapePropertyChange) {
+        this.onShapePropertyChange();
+      }
+
       this.clearCanvas();
     }
   }
@@ -1177,7 +1194,9 @@ export class Game {
       } else if (this.guestMode) {
         this.saveGuestCanvasData();
       }
-
+      if (this.onShapePropertyChange) {
+        this.onShapePropertyChange();
+      }
       this.clearCanvas();
     }
   }
@@ -1193,7 +1212,31 @@ export class Game {
       const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
 
       this.selectedShape.shape.fontSize = fontSize;
+      // Recalculate text dimensions based on new font size
+      let fontSizePx = 20;
+      let heightPx = 30;
 
+      if (fontSize === "small") {
+        fontSizePx = 14;
+        heightPx = 20;
+      } else if (fontSize === "medium") {
+        fontSizePx = 20;
+        heightPx = 30;
+      } else if (fontSize === "large") {
+        fontSizePx = 28;
+        heightPx = 40;
+      } else if (fontSize === "xlarge") {
+        fontSizePx = 36;
+        heightPx = 50;
+      }
+
+      // Set font for measuring text width
+      this.ctx.font = `${fontSizePx}px Arial`;
+
+      // Update the text dimensions
+      this.selectedShape.shape.width =
+        this.ctx.measureText(this.selectedShape.shape.text).width + 20;
+      this.selectedShape.shape.height = heightPx;
       // Update the shape in the array
       if (this.selectedShapeIndex >= 0) {
         this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
@@ -1230,7 +1273,9 @@ export class Game {
       } else if (this.guestMode) {
         this.saveGuestCanvasData();
       }
-
+      if (this.onShapePropertyChange) {
+        this.onShapePropertyChange();
+      }
       this.clearCanvas();
     }
   }
