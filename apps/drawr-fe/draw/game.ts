@@ -77,7 +77,19 @@ export type Shape =
 type Operation =
   | { type: "add"; shapes: Shape[] }
   | { type: "delete"; shapes: Shape[] }
-  | { type: "move"; originalShape: Shape; newShape: Shape; index: number };
+  | { type: "move"; originalShape: Shape; newShape: Shape; index: number }
+  | {
+      type: "propertyChange";
+      originalShape: Shape;
+      newShape: Shape;
+      index: number;
+      property:
+        | "strokeColor"
+        | "strokeWidth"
+        | "backgroundColor"
+        | "fillPattern"
+        | "fontSize";
+    };
 export class Game {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -483,8 +495,11 @@ export class Game {
           this.saveGuestCanvasData(); // Save to localStorage in guest mode
         }
       });
-    } else if (lastOperation.type === "move") {
-      // Undo a move operation by restoring the original shape
+    } else if (
+      lastOperation.type === "move" ||
+      lastOperation.type === "propertyChange"
+    ) {
+      // Undo the operation by restoring the original shape
       if (
         lastOperation.index >= 0 &&
         lastOperation.index < this.existingShapes.length
@@ -494,7 +509,7 @@ export class Game {
 
         // If not in guest mode, update the server
         if (!this.guestMode && this.socket) {
-          // Delete the moved shape
+          // Delete the modified shape
           if (lastOperation.newShape.id) {
             this.socket.send(
               JSON.stringify({
@@ -575,13 +590,16 @@ export class Game {
           }
         }
       });
-    } else if (operationToRedo.type === "move") {
-      // Redo a move operation by applying the new shape
+    } else if (
+      operationToRedo.type === "move" ||
+      operationToRedo.type === "propertyChange"
+    ) {
+      // Redo a move or property change operation by applying the new shape
       if (
         operationToRedo.index >= 0 &&
         operationToRedo.index < this.existingShapes.length
       ) {
-        // Replace the current shape with the moved shape
+        // Replace the current shape with the modified shape
         this.existingShapes[operationToRedo.index] = operationToRedo.newShape;
 
         // If not in guest mode, update the server
@@ -597,7 +615,7 @@ export class Game {
             );
           }
 
-          // Send the moved shape
+          // Send the modified shape
           this.socket.send(
             JSON.stringify({
               type: "chat",
@@ -607,7 +625,7 @@ export class Game {
           );
         }
 
-        // Update selection to point to the moved shape
+        // Update selection to point to the modified shape
         if (
           this.selectedShape &&
           this.selectedShape.id === operationToRedo.originalShape.id
@@ -961,12 +979,25 @@ export class Game {
   updateSelectedShapeStrokeColor(color: string) {
     if (!this.selectedShape) return;
 
+    const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
+
     this.selectedShape.shape.strokeColor = color;
 
     // Update the shape in the array
     if (this.selectedShapeIndex >= 0) {
       this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
     }
+
+    // Add to operations stack
+    this.operationsStack.push({
+      type: "propertyChange",
+      originalShape: originalShape,
+      newShape: JSON.parse(JSON.stringify(this.selectedShape)),
+      index: this.selectedShapeIndex,
+      property: "strokeColor",
+    });
+
+    this.clearRedoStack();
 
     // Send the updated shape to the server if not in guest mode
     if (!this.guestMode && this.socket && this.selectedShape.id) {
@@ -1001,12 +1032,25 @@ export class Game {
       this.selectedShape.shape.type === "rectangle" ||
       this.selectedShape.shape.type === "circle"
     ) {
+      const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
+
       this.selectedShape.shape.backgroundColor = color;
 
       // Update the shape in the array
       if (this.selectedShapeIndex >= 0) {
         this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
       }
+
+      // Add to operations stack
+      this.operationsStack.push({
+        type: "propertyChange",
+        originalShape: originalShape,
+        newShape: JSON.parse(JSON.stringify(this.selectedShape)),
+        index: this.selectedShapeIndex,
+        property: "backgroundColor",
+      });
+
+      this.clearRedoStack();
 
       // Send the updated shape to the server if not in guest mode
       if (!this.guestMode && this.socket && this.selectedShape.id) {
@@ -1042,12 +1086,25 @@ export class Game {
       this.selectedShape.shape.type === "rectangle" ||
       this.selectedShape.shape.type === "circle"
     ) {
+      const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
+
       this.selectedShape.shape.fillPattern = pattern;
 
       // Update the shape in the array
       if (this.selectedShapeIndex >= 0) {
         this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
       }
+
+      // Add to operations stack
+      this.operationsStack.push({
+        type: "propertyChange",
+        originalShape: originalShape,
+        newShape: JSON.parse(JSON.stringify(this.selectedShape)),
+        index: this.selectedShapeIndex,
+        property: "fillPattern",
+      });
+
+      this.clearRedoStack();
 
       // Send the updated shape to the server if not in guest mode
       if (!this.guestMode && this.socket && this.selectedShape.id) {
@@ -1080,12 +1137,25 @@ export class Game {
 
     // Don't apply to text
     if (this.selectedShape.shape.type !== "text") {
+      const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
+
       this.selectedShape.shape.strokeWidth = width;
 
       // Update the shape in the array
       if (this.selectedShapeIndex >= 0) {
         this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
       }
+
+      // Add to operations stack
+      this.operationsStack.push({
+        type: "propertyChange",
+        originalShape: originalShape,
+        newShape: JSON.parse(JSON.stringify(this.selectedShape)),
+        index: this.selectedShapeIndex,
+        property: "strokeWidth",
+      });
+
+      this.clearRedoStack();
 
       // Send the updated shape to the server if not in guest mode
       if (!this.guestMode && this.socket && this.selectedShape.id) {
@@ -1120,12 +1190,25 @@ export class Game {
 
     // Only apply to text
     if (this.selectedShape.shape.type === "text") {
+      const originalShape = JSON.parse(JSON.stringify(this.selectedShape));
+
       this.selectedShape.shape.fontSize = fontSize;
 
       // Update the shape in the array
       if (this.selectedShapeIndex >= 0) {
         this.existingShapes[this.selectedShapeIndex] = this.selectedShape;
       }
+
+      // Add to operations stack
+      this.operationsStack.push({
+        type: "propertyChange",
+        originalShape: originalShape,
+        newShape: JSON.parse(JSON.stringify(this.selectedShape)),
+        index: this.selectedShapeIndex,
+        property: "fontSize",
+      });
+
+      this.clearRedoStack();
 
       // Send the updated shape to the server if not in guest mode
       if (!this.guestMode && this.socket && this.selectedShape.id) {
